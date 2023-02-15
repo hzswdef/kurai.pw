@@ -29,9 +29,6 @@ git clone https://github.com/osuAkatsuki/bancho.py
 
 # enter bancho.py's new directory
 cd bancho.py
-
-# clone bancho.py's dependencies' repositories
-git submodule update --init
 ```
 
 ## installing bancho.py's requirements
@@ -39,11 +36,12 @@ bancho.py is a ~15,000 line codebase built on the shoulder of giants.
 
 we aim to minimize our dependencies, but still rely on ones such as
 - python (programming language)
+- rust (programming language)
 - mysql (relational database)
 - redis (in memory database)
 - nginx (http(s) reverse proxy)
 - certbot (ssl certificate tool)
-- cmake and build-essential (build tools for c/c++)
+- build-essential (build tools for c/c++)
 
 as well as some others.
 ```sh
@@ -54,9 +52,12 @@ sudo add-apt-repository -y ppa:deadsnakes
 
 # install required programs for running bancho.py
 sudo apt install -y python3.9-dev python3.9-distutils \
-                    cmake build-essential \
+                    build-essential \
                     mysql-server redis-server \
                     nginx certbot
+
+# install rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 # install python's package manager, pip
 # it's used to install python-specific dependencies
@@ -64,10 +65,11 @@ wget https://bootstrap.pypa.io/get-pip.py
 python3.9 get-pip.py && rm get-pip.py
 
 # make sure pip and setuptools are up to date
-python3.9 -m pip install -U pip setuptools
+python3.9 -m pip install -U pip setuptools pipenv
 
 # install bancho.py's python-specific dependencies
-python3.9 -m pip install -r requirements.txt
+# (if you plan to work as a dev, you can use `make install-dev`)
+make install
 ```
 
 ## creating a database for bancho.py
@@ -77,13 +79,16 @@ the server uses this database to store metadata & logs, such as user accounts
 and stats, beatmaps and beatmapsets, chat channels, tourney mappools and more.
 
 ```sh
+# start your database server
+sudo service mysql start
+
 # login to mysql's shell with root - the default admin account
 
 # note that this shell can be rather dangerous - it allows users
 # to perform arbitrary sql commands to interact with the database.
 
 # it's also very useful, powerful, and quick when used correctly.
-mysql -u root -p
+sudo mysql
 ```
 
 from this mysql shell, we'll want to create a database, create a user account,
@@ -193,7 +198,7 @@ if everything went well, you should be able to start your server up:
 
 ```sh
 # start the server
-./main.py
+make run
 ```
 
 and you should see something along the lines of:
@@ -205,10 +210,18 @@ and you should see something along the lines of:
     ├── app                   # the server - logic, classes and objects
     |   ├── api                 # code related to handling external requests
     |   |   ├── domains           # endpoints that can be reached from externally
-    |   |   |   ├── api.py        # endpoints available @ https://api.ppy.sh
-    |   |   |   ├── cho.py        # endpoints available @ https://c.ppy.sh
-    |   |   |   ├── map.py        # endpoints available @ https://b.ppy.sh
-    |   |   |   └── osu.py        # endpoints available @ https://osu.ppy.sh
+    |   |   |   ├── cho.py        # endpoints available @ https://c.cmyui.xyz
+    |   |   |   ├── map.py        # endpoints available @ https://b.cmyui.xyz
+    |   |   |   └── osu.py        # endpoints available @ https://osu.cmyui.xyz
+    |   |   |
+    |   |   ├── v1
+    |   |   |   └── api.py          # endpoints available @ https://api.cmyui.xyz/v1
+    |   |   |
+    |   |   ├── v2
+    |   |   |   ├── clans.py        # endpoints available @ https://api.cmyui.xyz/v2/clans
+    |   |   |   ├── maps.py         # endpoints available @ https://api.cmyui.xyz/v2/maps
+    |   |   |   ├── players.py      # endpoints available @ https://api.cmyui.xyz/v2/players
+    |   |   |   └── scores.py       # endpoints available @ https://api.cmyui.xyz/v2/scores
     |   |   |
     |   |   ├── init_api.py       # logic for putting the server together
     |   |   └── middlewares.py    # logic that wraps around the endpoints
