@@ -7,7 +7,6 @@ import struct
 import time
 from datetime import date
 from datetime import datetime
-from datetime import timedelta
 from pathlib import Path
 from typing import Callable
 from typing import Literal
@@ -16,20 +15,16 @@ from typing import TypedDict
 
 import bcrypt
 import databases.core
-from cmyui.logging import Ansi
-from cmyui.logging import log
-from cmyui.utils import magnitude_fmt_time
 from fastapi import APIRouter
 from fastapi import Response
 from fastapi.param_functions import Header
 from fastapi.requests import Request
 from fastapi.responses import HTMLResponse
-from peace_performance_python.objects import Beatmap as PeaceMap
-from peace_performance_python.objects import Calculator as PeaceCalculator
 
 import app.packets
 import app.settings
 import app.state
+import app.usecases.performance
 import app.utils
 from app import commands
 from app._typing import IPAddress
@@ -40,6 +35,9 @@ from app.constants.mods import SPEED_CHANGING_MODS
 from app.constants.privileges import ClanPrivileges
 from app.constants.privileges import ClientPrivileges
 from app.constants.privileges import Privileges
+from app.logging import Ansi
+from app.logging import log
+from app.logging import magnitude_fmt_time
 from app.objects.beatmap import Beatmap
 from app.objects.beatmap import ensure_local_osu_file
 from app.objects.channel import Channel
@@ -53,17 +51,17 @@ from app.objects.menu import MenuCommands
 from app.objects.menu import MenuFunction
 from app.objects.player import Action
 from app.objects.player import ClientDetails
+from app.objects.player import OsuStream
 from app.objects.player import OsuVersion
 from app.objects.player import Player
 from app.objects.player import PresenceFilter
 from app.packets import BanchoPacketReader
 from app.packets import BasePacket
 from app.packets import ClientPackets
+from app.state import services
+from app.usecases.performance import ScoreDifficultyParams
 
-try:
-    from oppai_ng.oppai import OppaiWrapper
-except ModuleNotFoundError:
-    pass  # utils will handle this for us
+OSU_API_V2_CHANGELOG_URL = "https://osu.ppy.sh/api/v2/changelog"
 
 BEATMAPS_PATH = Path.cwd() / ".data/osu"
 
@@ -110,9 +108,8 @@ async def bancho_handler(
 
     if osu_token is None:
         # the client is performing a login
-        async with app.state.sessions.players._lock:
-            async with app.state.services.database.connection() as db_conn:
-                login_data = await login(await request.body(), ip, db_conn)
+        async with app.state.services.database.connection() as db_conn:
+            login_data = await login(await request.body(), ip, db_conn)
 
         return Response(
             content=login_data["response_body"],
@@ -384,10 +381,8 @@ WELCOME_NOTIFICATION = app.packets.notification(
 
 OFFLINE_NOTIFICATION = app.packets.notification(
     "The server is currently running in offline mode; "
-    "some features will be unavailble.",
+    "some features will be unavailable.",
 )
-
-DELTA_90_DAYS = timedelta(days=90)
 
 
 class LoginResponse(TypedDict):
@@ -457,10 +452,6 @@ async def login(
     Login has no specific packet, but happens when the osu!
     client sends a request without an 'osu-token' header.
 
-    Some notes:
-      this must be called with app.state.sessions.players._lock held.
-      we return a tuple of (response_bytes, user_token) on success.
-
     Request format:
       username\npasswd_md5\nosu_version|utc_offset|display_city|client_hashes|pm_private\n
 
@@ -496,17 +487,40 @@ async def login(
             day=int(match["date"][6:8]),
         ),
         revision=int(match["revision"]) if match["revision"] else None,
-        stream=match["stream"] or "stable",
+        stream=OsuStream(match["stream"] or "stable"),
     )
 
-    # disallow login for clients older than 90 days
-    if osu_version.date < (date.today() - DELTA_90_DAYS):
-        return {
-            "osu_token": "client-too-old",
-            "response_body": (
-                app.packets.version_update_forced() + app.packets.user_id(-2)
-            ),
-        }
+    if app.settings.DISALLOW_OLD_CLIENTS:
+        osu_client_stream = osu_version.stream.value
+        if osu_client_stream in ("stable", "beta"):
+            osu_client_stream += "40"  # TODO: why?
+
+        allowed_client_versions = set()
+
+        async with services.http_client.get(
+            OSU_API_V2_CHANGELOG_URL,
+            params={"stream": osu_client_stream},
+        ) as resp:
+            for build in (await resp.json())["builds"]:
+                version = date(
+                    int(build["version"][0:4]),
+                    int(build["version"][4:6]),
+                    int(build["version"][6:8]),
+                )
+                allowed_client_versions.add(version)
+
+                if any(entry["major"] for entry in build["changelog_entries"]):
+                    # this build is a major iteration to the client
+                    # don't allow anything older than this
+                    break
+
+        if osu_version.date not in allowed_client_versions:
+            return {
+                "osu_token": "client-too-old",
+                "response_body": (
+                    app.packets.version_update_forced() + app.packets.user_id(-2)
+                ),
+            }
 
     running_under_wine = login_data["adapters_str"] == "runningunderwine"
     adapters = [a for a in login_data["adapters_str"][:-1].split(".")]
@@ -565,7 +579,8 @@ async def login(
     user_info = dict(user_info)  # make a mutable copy
 
     if osu_version.stream == "tourney" and not (
-        user_info["priv"] & Privileges.DONATOR and user_info["priv"] & Privileges.NORMAL
+        user_info["priv"] & Privileges.DONATOR
+        and user_info["priv"] & Privileges.UNRESTRICTED
     ):
         # trying to use tourney client with insufficient privileges.
         return {
@@ -665,7 +680,7 @@ async def login(
             # we will not allow any banned matches; if there are any,
             # then ask the user to contact staff and resolve manually.
             if not all(
-                [hw_match["priv"] & Privileges.NORMAL for hw_match in hw_matches],
+                [hw_match["priv"] & Privileges.UNRESTRICTED for hw_match in hw_matches],
             ):
                 return {
                     "osu_token": "contact-staff",
@@ -853,7 +868,7 @@ async def login(
                     Privileges.STAFF
                     | Privileges.NOMINATOR
                     | Privileges.WHITELISTED
-                    | Privileges.TOURNAMENT
+                    | Privileges.TOURNEY_MANAGER
                     | Privileges.DONATOR
                     | Privileges.ALUMNI,
                 )
@@ -962,7 +977,12 @@ class SpectateFrames(BasePacket):
         self.frame_bundle = reader.read_replayframe_bundle()
 
     async def handle(self, p: Player) -> None:
-        # packing this manually is about ~3x faster
+        # TODO: perform validations on the parsed frame bundle
+        # to ensure it's not being tamperated with or weaponized.
+
+        # NOTE: this is given a fastpath here for efficiency due to the
+        # sheer rate of usage of these packets in spectator mode.
+
         # data = app.packets.spectateFrames(self.frame_bundle.raw_data)
         data = (
             struct.pack("<HxI", 15, len(self.frame_bundle.raw_data))
@@ -1126,76 +1146,46 @@ class SendPrivateMessage(BasePacket):
                             # calculate pp for common generic values
                             pp_calc_st = time.time_ns()
 
-                            if mode_vn in (0, 1, 2):  # osu, taiko, catch
-                                if r_match["mods"] is not None:
-                                    # [1:] to remove leading whitespace
-                                    mods_str = r_match["mods"][1:]
-                                    mods = Mods.from_np(mods_str, mode_vn)
-                                else:
-                                    mods = None
+                            if r_match["mods"] is not None:
+                                # [1:] to remove leading whitespace
+                                mods_str = r_match["mods"][1:]
+                                mods = Mods.from_np(mods_str, mode_vn)
+                            else:
+                                mods = None
 
-                                pp_values = []  # [(acc, pp), ...]
+                            if mode_vn in (0, 1, 2):
+                                scores: list[ScoreDifficultyParams] = [
+                                    {"acc": acc}
+                                    for acc in app.settings.PP_CACHED_ACCURACIES
+                                ]
+                            else:  # mode_vn == 3
+                                scores: list[ScoreDifficultyParams] = [
+                                    {"score": score}
+                                    for score in app.settings.PP_CACHED_SCORES
+                                ]
 
-                                if mode_vn == 0:
-                                    with OppaiWrapper() as ezpp:
-                                        if mods is not None:
-                                            ezpp.set_mods(int(mods))
+                            results = app.usecases.performance.calculate_performances(
+                                osu_file_path=str(osu_file_path),
+                                mode=mode_vn,
+                                mods=int(mods) if mods is not None else None,
+                                scores=scores,
+                            )
 
-                                        for acc in app.settings.PP_CACHED_ACCS:
-                                            ezpp.set_accuracy_percent(acc)
-
-                                            ezpp.calculate(str(osu_file_path))
-
-                                            pp_values.append((acc, ezpp.get_pp()))
-                                else:
-                                    beatmap = PeaceMap(osu_file_path)
-                                    peace = PeaceCalculator()
-
-                                    if mods is not None:
-                                        peace.set_mods(int(mods))
-
-                                    peace.set_mode(mode_vn)
-
-                                    for acc in app.settings.PP_CACHED_ACCS:
-                                        peace.set_acc(acc)
-
-                                        calc = peace.calculate(beatmap)
-
-                                        pp_values.append((acc, calc.pp))
-
+                            if mode_vn in (0, 1, 2):
                                 resp_msg = " | ".join(
-                                    [f"{acc}%: {pp:,.2f}pp" for acc, pp in pp_values],
+                                    f"{acc}%: {result['performance']:,.2f}pp"
+                                    for acc, result in zip(
+                                        app.settings.PP_CACHED_ACCURACIES,
+                                        results,
+                                    )
                                 )
-                            else:  # mania
-                                if r_match["mods"] is not None:
-                                    # [1:] to remove leading whitespace
-                                    mods_str = r_match["mods"][1:]
-                                    mods = Mods.from_np(mods_str, mode_vn)
-                                else:
-                                    mods = None
-
-                                beatmap = PeaceMap(osu_file_path)
-                                peace = PeaceCalculator()
-
-                                if mods is not None:
-                                    peace.set_mods(int(mods))
-
-                                peace.set_mode(mode_vn)
-
-                                pp_values = []
-
-                                for score in app.settings.PP_CACHED_SCORES:
-                                    peace.set_score(int(score))
-
-                                    calc = peace.calculate(beatmap)
-
-                                    pp_values.append((score, calc.pp))
-
+                            else:  # mode_vn == 3
                                 resp_msg = " | ".join(
-                                    [
-                                        f"{int(score // 1000)}k: {pp:,.2f}pp"
-                                        for score, pp in pp_values
-                                    ],
+                                    f"{score // 1000:.0f}k: {result['performance']:,.2f}pp"
+                                    for score, result in zip(
+                                        app.settings.PP_CACHED_SCORES,
+                                        results,
+                                    )
                                 )
 
                             elapsed = time.time_ns() - pp_calc_st

@@ -147,14 +147,14 @@ async def api_get_player_info(
     if username:
         user_info = await app.state.services.database.fetch_one(
             "SELECT id, name, safe_name, "
-            "priv, clan_id, country, silence_end "
+            "priv, clan_id, country, silence_end, donor_end "
             "FROM users WHERE safe_name = :username",
             {"username": username.lower()},
         )
     else:  # if user_id
         user_info = await app.state.services.database.fetch_one(
             "SELECT id, name, safe_name, "
-            "priv, clan_id, country, silence_end "
+            "priv, clan_id, country, silence_end, donor_end "
             "FROM users WHERE id = :userid",
             {"userid": user_id},
         )
@@ -747,7 +747,7 @@ async def api_get_replay(
     replay_data += struct.pack("<i", len(raw_replay_data))
     replay_data += raw_replay_data
 
-    # pack additional info info buffer.
+    # pack additional info buffer.
     replay_data += struct.pack("<q", score_id)
 
     # NOTE: target practice sends extra mods, but
@@ -817,9 +817,9 @@ async def api_get_match(
 
 @router.get("/get_leaderboard")
 async def api_get_global_leaderboard(
-    sort: Literal["tscore", "rscore", "pp", "acc"] = "pp",
+    sort: Literal["tscore", "rscore", "pp", "acc", "plays", "playtime"] = "pp",
     mode_arg: int = Query(0, alias="mode", ge=0, le=11),
-    limit: int = Query(25, ge=1, le=100),
+    limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, min=0, max=2_147_483_647),
     country: Optional[str] = Query(None, min_length=2, max_length=2),
     db_conn: databases.core.Connection = Depends(acquire_db_conn),

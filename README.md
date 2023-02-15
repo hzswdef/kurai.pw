@@ -7,7 +7,7 @@
 bancho.py is an in-progress osu! server implementation for developers of all levels
 of experience interested in hosting their own osu private server instance(s).
 
-the project is developed primarily by the [osu!Akatsuki](https://akatsuki.pw/) team,
+the project is developed primarily by the [Akatsuki](https://akatsuki.pw/) team,
 and our aim is to create the most easily maintainable, reliable, and feature-rich
 osu! server implementation available.
 
@@ -19,12 +19,18 @@ means required.
 
 if you get stuck at any point in the process - we have a public discord above :)
 
+this guide will be targetted towards ubuntu - other distros may have slightly
+different setup processes.
+
 ## download the osu! server codebase onto your machine
 ```sh
 # clone bancho.py's repository
-git clone https://github.com/osuAkatsuki/bancho.py.git && cd bancho.py
+git clone https://github.com/osuAkatsuki/bancho.py
 
-# clone bancho.py's submodule repositories
+# enter bancho.py's new directory
+cd bancho.py
+
+# clone bancho.py's dependencies' repositories
 git submodule update --init
 ```
 
@@ -34,27 +40,33 @@ bancho.py is a ~15,000 line codebase built on the shoulder of giants.
 we aim to minimize our dependencies, but still rely on ones such as
 - python (programming language)
 - mysql (relational database)
+- redis (in memory database)
 - nginx (http(s) reverse proxy)
 - certbot (ssl certificate tool)
+- cmake and build-essential (build tools for c/c++)
 
 as well as some others.
-
 ```sh
 # python3.9 is often not available natively,
-# so we can use deadsnakes to provide it!
+# but we can rely on deadsnakes to provide it.
 # https://github.com/deadsnakes/python3.9
-sudo add-apt-repository ppa:deadsnakes
+sudo add-apt-repository -y ppa:deadsnakes
 
 # install required programs for running bancho.py
-sudo apt install python3.9-dev python3.9-distutils cmake build-essential \
-                 mysql-server redis-server nginx certbot
+sudo apt install -y python3.9-dev python3.9-distutils \
+                    cmake build-essential \
+                    mysql-server redis-server \
+                    nginx certbot
 
 # install python's package manager, pip
+# it's used to install python-specific dependencies
 wget https://bootstrap.pypa.io/get-pip.py
 python3.9 get-pip.py && rm get-pip.py
 
-# install bancho.py's python requirements
+# make sure pip and setuptools are up to date
 python3.9 -m pip install -U pip setuptools
+
+# install bancho.py's python-specific dependencies
 python3.9 -m pip install -r requirements.txt
 ```
 
@@ -79,8 +91,12 @@ and give the user full permissions to the database.
 
 then, later on, we'll configure bancho.py to use this database as well.
 ```sql
+# you'll need to change:
+# - YOUR_DB_NAME
+# - YOUR_DB_USER
+# - YOUR_DB_PASSWORD
+
 # create a database for bancho.py to use
-# (you can name this whatever you'd like)
 CREATE DATABASE YOUR_DB_NAME;
 
 # create a user to use the bancho.py database
@@ -112,15 +128,22 @@ for example, an individual score in the scores table.
 this base state of the database is stored in `ext/base.sql`; it's a bunch of
 sql commands that can be run in sequence to create the base state we want.
 ```sh
+# you'll need to change:
+# - YOUR_DB_NAME
+# - YOUR_DB_USER
+
 # import bancho.py's mysql structure to our new db
 # this runs the contents of the file as sql commands.
 mysql -u YOUR_DB_USER -p YOUR_DB_NAME < migrations/base.sql
 ```
 
-## creating an ssl certificate (to allow https traffic)
+## creating a ssl certificate (to allow https traffic)
 ```sh
+# you'll need to change:
+# - YOUR_EMAIL_ADDRESS
+# - YOUR_DOMAIN
+
 # generate an ssl certificate for your domain
-# (you'll only need to change the email & domain)
 sudo certbot certonly \
     --manual \
     --preferred-challenges=dns \
@@ -142,8 +165,7 @@ sudo cp ext/nginx.conf /etc/nginx/sites-available/bancho.conf
 sudo ln -s /etc/nginx/sites-available/bancho.conf /etc/nginx/sites-enabled/bancho.conf
 
 # now, you can edit the config file.
-# you should only need to edit the directory paths used
-# for ssl certificates, as well as for static assets.
+# the spots you'll need to change are marked.
 sudo nano /etc/nginx/sites-available/bancho.conf
 
 # reload config from disk
@@ -165,7 +187,7 @@ cp .env.example .env
 nano .env
 ```
 
-## congratulations! you just setup an osu! private server
+## congratulations! you just set up an osu! private server
 
 if everything went well, you should be able to start your server up:
 
@@ -176,7 +198,7 @@ if everything went well, you should be able to start your server up:
 
 and you should see something along the lines of:
 
-![ada](https://i.cmyui.xyz/ld-iZXysVXqwhM8.png)
+![tada](https://cdn.discordapp.com/attachments/616400094408736779/993705619498467369/ld-iZXysVXqwhM8.png)
 
 # Directory Structure
     .
@@ -184,7 +206,6 @@ and you should see something along the lines of:
     |   ├── api                 # code related to handling external requests
     |   |   ├── domains           # endpoints that can be reached from externally
     |   |   |   ├── api.py        # endpoints available @ https://api.ppy.sh
-    |   |   |   ├── ava.py        # endpoints available @ https://a.ppy.sh
     |   |   |   ├── cho.py        # endpoints available @ https://c.ppy.sh
     |   |   |   ├── map.py        # endpoints available @ https://b.ppy.sh
     |   |   |   └── osu.py        # endpoints available @ https://osu.ppy.sh

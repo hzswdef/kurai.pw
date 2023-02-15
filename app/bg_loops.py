@@ -3,13 +3,12 @@ from __future__ import annotations
 import asyncio
 import time
 
-from cmyui.logging import Ansi
-from cmyui.logging import log
-
 import app.packets
 import app.settings
 import app.state
 from app.constants.privileges import Privileges
+from app.logging import Ansi
+from app.logging import log
 
 __all__ = ("initialize_housekeeping_tasks",)
 
@@ -55,6 +54,7 @@ async def _remove_expired_donation_privileges(interval: int) -> None:
 
             # TODO: perhaps make a `revoke_donor` method?
             await p.remove_privs(Privileges.DONATOR)
+            p.donor_end = 0
             await app.state.services.database.execute(
                 "UPDATE users SET donor_end = 0 WHERE id = :id",
                 {"id": p.id},
@@ -84,7 +84,7 @@ async def _disconnect_ghosts(interval: int) -> None:
 
 
 async def _update_bot_status(interval: int) -> None:
-    """Reroll the bot's status, every `interval`."""
+    """Re roll the bot status, every `interval`."""
     while True:
         await asyncio.sleep(interval)
         app.packets.bot_stats.cache_clear()

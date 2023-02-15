@@ -1,6 +1,16 @@
 #!/usr/bin/env python3.9
-"""bancho.py - a fully-featured, dev-centered osu! server implementation
-made for running production-quality osu! private servers."""
+"""main.py - a user-friendly, safe wrapper around bancho.py's runtime
+
+bancho.py is an in-progress osu! server implementation for developers of all levels
+of experience interested in hosting their own osu private server instance(s).
+
+the project is developed primarily by the Akatsuki (https://akatsuki.pw) team,
+and our aim is to create the most easily maintainable, reliable, and feature-rich
+osu! server implementation available.
+
+we're also fully open source!
+https://github.com/osuAkatsuki/bancho.py
+"""
 from __future__ import annotations
 
 __author__ = "Joshua Smith (cmyui)"
@@ -12,28 +22,45 @@ import os
 # set working directory to the bancho/ directory.
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
+import argparse
 import logging
+import sys
+from typing import Sequence
 
 import uvicorn
-from cmyui.logging import Ansi
-from cmyui.logging import log
 
 import app.utils
 import app.settings
+from app.logging import Ansi
+from app.logging import log
 
 
-def main() -> int:
+def main(argv: Sequence[str]) -> int:
     """Ensure runtime environment is ready, and start the server."""
     app.utils.setup_runtime_environment()
 
     for safety_check in (
         app.utils.ensure_supported_platform,  # linux only at the moment
-        app.utils.ensure_local_services_are_running,  # mysql (if local)
+        app.utils.ensure_connected_services,  # mysql, redis
         app.utils.ensure_directory_structure,  # .data/ & achievements/ dir structure
         app.utils.ensure_dependencies_and_requirements,  # submodules & oppai-ng built
     ):
         if (exit_code := safety_check()) != 0:
             return exit_code
+
+    """ Parse and handle command-line arguments. """
+
+    parser = argparse.ArgumentParser(
+        description=("An open-source osu! server implementation by Akatsuki."),
+    )
+    parser.add_argument(
+        "-V",
+        "--version",
+        action="version",
+        version=f"%(prog)s v{app.settings.VERSION}",
+    )
+
+    parser.parse_args(argv)
 
     """ Server should be safe to start """
 
@@ -105,4 +132,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(main(sys.argv[1:]))
