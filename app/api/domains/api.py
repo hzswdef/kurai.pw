@@ -17,6 +17,7 @@ from fastapi.responses import StreamingResponse
 
 import app.packets
 import app.state
+from app.settings import API_HEADERS
 from app.constants import regexes
 from app.constants.gamemodes import GameMode
 from app.constants.mods import Mods
@@ -127,6 +128,7 @@ async def api_get_player_count():
                 "total": total_users,
             },
         },
+        headers=API_HEADERS
     )
 
 
@@ -141,6 +143,7 @@ async def api_get_player_info(
         return ORJSONResponse(
             {"status": "Must provide either id OR name!"},
             status_code=status.HTTP_400_BAD_REQUEST,
+            headers=API_HEADERS
         )
 
     # get user info from username or user id
@@ -163,6 +166,7 @@ async def api_get_player_info(
         return ORJSONResponse(
             {"status": "Player not found."},
             status_code=status.HTTP_404_NOT_FOUND,
+            headers=API_HEADERS
         )
 
     resolved_user_id: int = user_info["id"]
@@ -204,7 +208,10 @@ async def api_get_player_info(
             mode = str(mode_stats.pop("mode"))
             api_data["stats"][mode] = mode_stats
 
-    return ORJSONResponse({"status": "success", "player": api_data})
+    return ORJSONResponse(
+        {"status": "success", "player": api_data},
+        headers=API_HEADERS
+    )
 
 
 @router.get("/get_player_status")
@@ -217,6 +224,7 @@ async def api_get_player_status(
         return ORJSONResponse(
             {"status": "Must provide either id OR name!"},
             status_code=status.HTTP_400_BAD_REQUEST,
+            headers=API_HEADERS
         )
 
     if username:
@@ -227,6 +235,7 @@ async def api_get_player_status(
         return ORJSONResponse(
             {"status": "Must provide either id OR name!"},
             status_code=status.HTTP_400_BAD_REQUEST,
+            headers=API_HEADERS
         )
 
     if not player:
@@ -247,6 +256,7 @@ async def api_get_player_status(
             return ORJSONResponse(
                 {"status": "Player not found."},
                 status_code=status.HTTP_404_NOT_FOUND,
+                headers=API_HEADERS
             )
 
         return ORJSONResponse(
@@ -257,6 +267,7 @@ async def api_get_player_status(
                     "last_seen": row["latest_activity"],
                 },
             },
+            headers=API_HEADERS
         )
 
     if player.status.map_md5:
@@ -279,6 +290,7 @@ async def api_get_player_status(
                 },
             },
         },
+        headers=API_HEADERS
     )
 
 
@@ -303,12 +315,14 @@ async def api_get_player_scores(
         return ORJSONResponse(
             {"status": "Invalid gamemode."},
             status_code=status.HTTP_400_BAD_REQUEST,
+            headers=API_HEADERS
         )
 
     if username and user_id:
         return ORJSONResponse(
             {"status": "Must provide either id OR name!"},
             status_code=status.HTTP_400_BAD_REQUEST,
+            headers=API_HEADERS
         )
 
     if username:
@@ -319,12 +333,14 @@ async def api_get_player_scores(
         return ORJSONResponse(
             {"status": "Must provide either id OR name!"},
             status_code=status.HTTP_400_BAD_REQUEST,
+            headers=API_HEADERS
         )
 
     if not player:
         return ORJSONResponse(
             {"status": "Player not found."},
             status_code=status.HTTP_404_NOT_FOUND,
+            headers=API_HEADERS
         )
 
     # parse args (scope, mode, mods, limit)
@@ -417,6 +433,7 @@ async def api_get_player_scores(
             "scores": rows,
             "player": player_info,
         },
+        headers=API_HEADERS
     )
 
 
@@ -439,6 +456,7 @@ async def api_get_player_most_played(
         return ORJSONResponse(
             {"status": "Invalid gamemode."},
             status_code=status.HTTP_400_BAD_REQUEST,
+            headers=API_HEADERS
         )
 
     if user_id is not None:
@@ -449,12 +467,14 @@ async def api_get_player_most_played(
         return ORJSONResponse(
             {"status": "Must provide either id or name."},
             status_code=status.HTTP_400_BAD_REQUEST,
+            headers=API_HEADERS
         )
 
     if not p:
         return ORJSONResponse(
             {"status": "Player not found."},
             status_code=status.HTTP_404_NOT_FOUND,
+            headers=API_HEADERS
         )
 
     # parse args (mode, limit)
@@ -480,6 +500,7 @@ async def api_get_player_most_played(
             "status": "success",
             "maps": [dict(row) for row in rows],
         },
+        headers=API_HEADERS
     )
 
 
@@ -497,12 +518,14 @@ async def api_get_map_info(
         return ORJSONResponse(
             {"status": "Must provide either id or md5!"},
             status_code=status.HTTP_400_BAD_REQUEST,
+            headers=API_HEADERS
         )
 
     if not bmap:
         return ORJSONResponse(
             {"status": "Map not found."},
             status_code=status.HTTP_404_NOT_FOUND,
+            headers=API_HEADERS
         )
 
     return ORJSONResponse(
@@ -510,6 +533,7 @@ async def api_get_map_info(
             "status": "success",
             "map": bmap.as_dict,
         },
+        headers=API_HEADERS
     )
 
 
@@ -533,6 +557,7 @@ async def api_get_map_scores(
         return ORJSONResponse(
             {"status": "Invalid gamemode."},
             status_code=status.HTTP_400_BAD_REQUEST,
+            headers=API_HEADERS
         )
 
     if map_id is not None:
@@ -543,12 +568,14 @@ async def api_get_map_scores(
         return ORJSONResponse(
             {"status": "Must provide either id or md5!"},
             status_code=status.HTTP_400_BAD_REQUEST,
+            headers=API_HEADERS
         )
 
     if not bmap:
         return ORJSONResponse(
             {"status": "Map not found."},
             status_code=status.HTTP_404_NOT_FOUND,
+            headers=API_HEADERS
         )
 
     # parse args (scope, mode, mods, limit)
@@ -617,6 +644,7 @@ async def api_get_map_scores(
             "status": "success",
             "scores": [dict(row) for row in rows],
         },
+        headers=API_HEADERS
     )
 
 
@@ -639,9 +667,13 @@ async def api_get_score_info(
         return ORJSONResponse(
             {"status": "Score not found."},
             status_code=status.HTTP_404_NOT_FOUND,
+            headers=API_HEADERS
         )
 
-    return ORJSONResponse({"status": "success", "score": dict(row)})
+    return ORJSONResponse(
+        {"status": "success", "score": dict(row)},
+        headers=API_HEADERS
+    )
 
 
 # TODO: perhaps we can do something to make these count towards replay views,
@@ -660,6 +692,7 @@ async def api_get_replay(
         return ORJSONResponse(
             {"status": "Replay not found."},
             status_code=status.HTTP_404_NOT_FOUND,
+            headers=API_HEADERS
         )
 
     # read replay frames from file
@@ -696,6 +729,7 @@ async def api_get_replay(
         return ORJSONResponse(
             {"status": "Score not found."},
             status_code=status.HTTP_404_NOT_FOUND,
+            headers=API_HEADERS
         )  # but replay was?
 
     # generate the replay's hash
@@ -779,6 +813,7 @@ async def api_get_match(
         return ORJSONResponse(
             {"status": "Match not found."},
             status_code=status.HTTP_404_NOT_FOUND,
+            headers=API_HEADERS
         )
 
     return ORJSONResponse(
@@ -812,6 +847,7 @@ async def api_get_match(
                 },
             },
         },
+        headers=API_HEADERS
     )
 
 
@@ -833,6 +869,7 @@ async def api_get_global_leaderboard(
         return ORJSONResponse(
             {"status": "Invalid gamemode."},
             status_code=status.HTTP_400_BAD_REQUEST,
+            headers=API_HEADERS
         )
 
     mode = GameMode(mode_arg)
@@ -859,6 +896,7 @@ async def api_get_global_leaderboard(
 
     return ORJSONResponse(
         {"status": "success", "leaderboard": [dict(row) for row in rows]},
+        headers=API_HEADERS
     )
 
 
@@ -874,6 +912,7 @@ async def api_get_clan(
         return ORJSONResponse(
             {"status": "Clan not found."},
             status_code=status.HTTP_404_NOT_FOUND,
+            headers=API_HEADERS
         )
 
     members: list[Player] = []
@@ -907,6 +946,7 @@ async def api_get_clan(
                 "rank": "Owner",
             },
         },
+        headers=API_HEADERS
     )
 
 
@@ -922,6 +962,7 @@ async def api_get_pool(
         return ORJSONResponse(
             {"status": "Pool not found."},
             status_code=status.HTTP_404_NOT_FOUND,
+            headers=API_HEADERS
         )
 
     return ORJSONResponse(
@@ -935,6 +976,7 @@ async def api_get_pool(
                 for (mods, slot), bmap in pool.maps.items()
             },
         },
+        headers=API_HEADERS
     )
 
 
