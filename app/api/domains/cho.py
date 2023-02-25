@@ -367,7 +367,7 @@ WELCOME_MSG = "\n".join(
     (
         f"Welcome to {BASE_DOMAIN}.",
         "To see a list of commands, use !help.",
-        "We have a public (Discord)[https://discord.gg/ShEQgUx]!",
+        "We have a public (Discord)[https://discord.gg/Fn2ZRmEpy7]!",
         "Enjoy the server!",
     ),
 )
@@ -379,7 +379,7 @@ RESTRICTED_MSG = (
 )
 
 WELCOME_NOTIFICATION = app.packets.notification(
-    f"Welcome back to {BASE_DOMAIN}!\nRunning bancho.py v{app.settings.VERSION}.",
+    f"Welcome back to {BASE_DOMAIN}!",
 )
 
 OFFLINE_NOTIFICATION = app.packets.notification(

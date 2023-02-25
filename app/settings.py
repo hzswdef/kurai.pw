@@ -79,6 +79,12 @@ AUTOMATICALLY_REPORT_PROBLEMS: bool = config(
     default=True,
 )
 
+API_HEADERS = {
+    "Access-Control-Allow-Origin": "*",
+    'Access-Control-Allow-Headers': "*",
+    'Access-Control-Allow-Methods': "*",
+}
+
 # advanced dev settings
 
 ## WARNING: only touch this once you've
