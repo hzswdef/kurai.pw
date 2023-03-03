@@ -73,12 +73,6 @@ DISCORD_AUDIT_LOG_WEBHOOK = os.environ["DISCORD_AUDIT_LOG_WEBHOOK"]
 
 AUTOMATICALLY_REPORT_PROBLEMS = read_bool(os.environ["AUTOMATICALLY_REPORT_PROBLEMS"])
 
-API_HEADERS = {
-    "Access-Control-Allow-Origin": "*",
-    'Access-Control-Allow-Headers': "*",
-    'Access-Control-Allow-Methods': "*",
-}
-
 # advanced dev settings
 
 ## WARNING touch this once you've
