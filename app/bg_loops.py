@@ -3,13 +3,12 @@ from __future__ import annotations
 import asyncio
 import time
 
-from cmyui.logging import Ansi
-from cmyui.logging import log
-
 import app.packets
 import app.settings
 import app.state
 from app.constants.privileges import Privileges
+from app.logging import Ansi
+from app.logging import log
 
 __all__ = ("initialize_housekeeping_tasks",)
 
@@ -47,25 +46,26 @@ async def _remove_expired_donation_privileges(interval: int) -> None:
         )
 
         for expired_donor in expired_donors:
-            p = await app.state.sessions.players.from_cache_or_sql(
+            player = await app.state.sessions.players.from_cache_or_sql(
                 id=expired_donor["id"],
             )
 
-            assert p is not None
+            assert player is not None
 
             # TODO: perhaps make a `revoke_donor` method?
-            await p.remove_privs(Privileges.DONATOR)
+            await player.remove_privs(Privileges.DONATOR)
+            player.donor_end = 0
             await app.state.services.database.execute(
                 "UPDATE users SET donor_end = 0 WHERE id = :id",
-                {"id": p.id},
+                {"id": player.id},
             )
 
-            if p.online:
-                p.enqueue(
+            if player.online:
+                player.enqueue(
                     app.packets.notification("Your supporter status has expired."),
                 )
 
-            log(f"{p}'s supporter status has expired.", Ansi.LMAGENTA)
+            log(f"{player}'s supporter status has expired.", Ansi.LMAGENTA)
 
         await asyncio.sleep(interval)
 
@@ -77,14 +77,14 @@ async def _disconnect_ghosts(interval: int) -> None:
         await asyncio.sleep(interval)
         current_time = time.time()
 
-        for p in app.state.sessions.players:
-            if current_time - p.last_recv_time > OSU_CLIENT_MIN_PING_INTERVAL:
-                log(f"Auto-dced {p}.", Ansi.LMAGENTA)
-                p.logout()
+        for player in app.state.sessions.players:
+            if current_time - player.last_recv_time > OSU_CLIENT_MIN_PING_INTERVAL:
+                log(f"Auto-dced {player}.", Ansi.LMAGENTA)
+                player.logout()
 
 
 async def _update_bot_status(interval: int) -> None:
-    """Reroll the bot's status, every `interval`."""
+    """Re roll the bot status, every `interval`."""
     while True:
         await asyncio.sleep(interval)
         app.packets.bot_stats.cache_clear()
