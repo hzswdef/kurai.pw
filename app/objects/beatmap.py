@@ -289,7 +289,9 @@ class Beatmap:
     @property
     def url(self) -> str:
         """The osu! beatmap url for `self`."""
-        return f"https://osu.{app.settings.DOMAIN}/beatmapsets/{self.set.id}/{self.id}"
+        # @TODO Replace when osu!direct is fixed.
+        # return f"https://osu.{app.settings.DOMAIN}/beatmapsets/{self.set.id}/{self.id}"
+        return f"https://osu.ppy.sh/beatmapsets/{self.set.id}#{self.mode}/{self.id}"
 
     @property
     def embed(self) -> str:

@@ -778,9 +778,11 @@ async def login(
     # but not in userPresence (so that only donators
     # show up with the yellow name in-game, but everyone
     # gets osu!direct & other in-game perks).
-    data += app.packets.bancho_privileges(
-        player.bancho_priv | ClientPrivileges.SUPPORTER,
-    )
+
+    # @TODO Restore osu!supporter when osu!direct get fixed.
+    # data += app.packets.bancho_privileges(
+    #     player.bancho_priv | ClientPrivileges.SUPPORTER,
+    # )
 
     data += WELCOME_NOTIFICATION
 
@@ -1521,15 +1523,16 @@ class MatchChangeSettings(BasePacket):
             player.match.map_md5 = ""
             player.match.map_name = ""
         elif player.match.map_id == -1:
-            if player.match.prev_map_id != self.match_data.map_id:
-                # new map has been chosen, send to match chat.
-                map_url = f"https://osu.{app.settings.DOMAIN}/beatmapsets/#/{self.match_data.map_id}"
-                map_embed = f"[{map_url} {self.match_data.map_name}]"
-                player.match.chat.send_bot(f"Selected: {map_embed}.")
-
             # use our serverside version if we have it, but
             # still allow for users to pick unknown maps.
             bmap = await Beatmap.from_md5(self.match_data.map_md5)
+
+            if player.match.prev_map_id != self.match_data.map_id:
+                # new map has been chosen, send to match chat.
+                map_url = f"https://osu.{app.settings.DOMAIN}/beatmapsets/{bmap.set_id}#{bmap.mode.to_string}/{bmap.id}"
+
+                map_embed = f"[{map_url} {self.match_data.map_name}]"
+                player.match.chat.send_bot(f"Selected: {map_embed}.")
 
             if bmap:
                 player.match.map_id = bmap.id

@@ -70,6 +70,18 @@ class GameMode(IntEnum):
         return ret
 
     @property
+    def to_string(self) -> str:
+        """ Converts mode ID to string, uses to create URL to beatmap. """
+        human_readable = {
+            0: 'osu',
+            1: 'taiko',
+            2: 'catch',
+            3: 'mania',
+        }
+        return human_readable[self.value % 4]
+
+
+    @property
     def as_vanilla(self) -> int:
         return self.value % 4
 

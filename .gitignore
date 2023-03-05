@@ -13,3 +13,4 @@ tools/migrate_v420/scoreMigrator
 .pytest_cache/
 .idea/
 *.sql
+oppai_ng/
