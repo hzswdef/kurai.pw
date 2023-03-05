@@ -12,7 +12,7 @@ import sys
 from enum import unique
 from enum import IntEnum
 
-from cmyui.logging import RGB
+from app.logging import RGB
 from mitmproxy import http
 
 
@@ -99,7 +99,7 @@ def fmt_bytes(n: int | float) -> str:
 
 
 DOMAIN_RGX = re.compile(
-    r"^(?P<subdomain>osu|c[e4-6]?|a|s|b|assets)\." rf"(?:ppy\.sh|{re.escape(domain)})$",
+    rf"^(?P<subdomain>osu|c[e4]?|a|s|b|assets)\.(?:ppy\.sh|{re.escape(domain)})$",
 )
 
 PACKET_HEADER_FMT = struct.Struct("<HxI")  # header gives us packet id & data length
@@ -108,10 +108,12 @@ print(f"\x1b[0;92mListening (ppy.sh & {domain})\x1b[0m\n")
 
 
 def response(flow: http.HTTPFlow) -> None:
-    if not (r_match := DOMAIN_RGX.match(flow.request.host)):
+    r_match = DOMAIN_RGX.match(flow.request.host)
+    if not r_match:
         return  # unrelated request
 
-    if not (body := flow.response.content):
+    body = flow.response.content
+    if not body:
         return  # empty resp
 
     sys.stdout.write(f"\x1b[0;93m[{flow.request.method}] {flow.request.url}\x1b[0m\n")

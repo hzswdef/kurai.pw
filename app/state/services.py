@@ -7,7 +7,6 @@ import re
 import secrets
 from pathlib import Path
 from typing import AsyncGenerator
-from typing import AsyncIterator
 from typing import Mapping
 from typing import MutableMapping
 from typing import Optional
@@ -20,14 +19,14 @@ import datadog as datadog_module
 import datadog.threadstats.base as datadog_client
 import geoip2.database
 import pymysql
-from cmyui.logging import Ansi
-from cmyui.logging import log
-from cmyui.logging import printc
-from cmyui.logging import Rainbow
 
 import app.settings
 import app.state
 from app._typing import IPAddress
+from app.logging import Ansi
+from app.logging import log
+from app.logging import printc
+from app.logging import Rainbow
 
 if TYPE_CHECKING:
     import aiohttp
@@ -43,7 +42,7 @@ SQL_UPDATES_FILE = Path.cwd() / "migrations/migrations.sql"
 
 """ session objects """
 
-http: aiohttp.ClientSession
+http_client: aiohttp.ClientSession
 database = databases.Database(app.settings.DB_DSN)
 redis: aioredis.Redis = aioredis.from_url(app.settings.REDIS_DSN)
 
@@ -121,7 +120,8 @@ class IPResolver:
 
     def get_ip(self, headers: Mapping[str, str]) -> IPAddress:
         """Resolve the IP address from the headers."""
-        if (ip_str := headers.get("CF-Connecting-IP")) is None:
+        ip_str = headers.get("CF-Connecting-IP")
+        if ip_str is None:
             forwards = headers["X-Forwarded-For"].split(",")
 
             if len(forwards) != 1:
@@ -129,7 +129,8 @@ class IPResolver:
             else:
                 ip_str = headers["X-Real-IP"]
 
-        if (ip := self.cache.get(ip_str)) is None:
+        ip = self.cache.get(ip_str)
+        if ip is None:
             ip = ipaddress.ip_address(ip_str)
             self.cache[ip_str] = ip
 
@@ -161,7 +162,7 @@ async def fetch_geoloc_web(ip: IPAddress) -> Optional[Geolocation]:
     """Fetch geolocation data based on ip (using ip-api)."""
     url = f"http://ip-api.com/line/{ip}"
 
-    async with http.get(url) as resp:
+    async with http_client.get(url) as resp:
         if not resp or resp.status != 200:
             log("Failed to get geoloc data: request failed.", Ansi.LRED)
             return None
@@ -194,7 +195,7 @@ async def log_strange_occurrence(obj: object) -> None:
 
     if app.settings.AUTOMATICALLY_REPORT_PROBLEMS:
         # automatically reporting problems to cmyui's server
-        async with http.post(
+        async with http_client.post(
             url="https://log.cmyui.xyz/",
             headers={
                 "Bancho-Version": app.settings.VERSION,
@@ -235,8 +236,6 @@ async def log_strange_occurrence(obj: object) -> None:
 
 
 class Version:
-    __slots__ = ("major", "minor", "micro")
-
     def __init__(self, major: int, minor: int, micro: int) -> None:
         self.major = major
         self.minor = minor
@@ -269,7 +268,8 @@ class Version:
 
     @classmethod
     def from_str(cls, s: str) -> Optional[Version]:
-        if len(split := s.split(".")) == 3:
+        split = s.split(".")
+        if len(split) == 3:
             return cls(
                 major=int(split[0]),
                 minor=int(split[1]),
@@ -300,8 +300,9 @@ async def _get_latest_dependency_versions() -> AsyncGenerator[
 
         # TODO: split up and do the requests asynchronously
         url = f"https://pypi.org/pypi/{dependency_name}/json"
-        async with http.get(url) as resp:
-            if resp.status == 200 and (json := await resp.json()):
+        async with http_client.get(url) as resp:
+            json = await resp.json()
+            if resp.status == 200 and json:
                 latest_ver = Version.from_str(json["info"]["version"])
 
                 if not latest_ver:
@@ -352,7 +353,8 @@ async def _get_current_sql_structure_version() -> Optional[Version]:
 
 async def run_sql_migrations() -> None:
     """Update the sql structure, if it has changed."""
-    if not (current_ver := await _get_current_sql_structure_version()):
+    current_ver = await _get_current_sql_structure_version()
+    if not current_ver:
         return  # already up to date (server has never run before)
 
     latest_ver = Version.from_str(app.settings.VERSION)
@@ -377,7 +379,8 @@ async def run_sql_migrations() -> None:
 
         if line.startswith("#"):
             # may be normal comment or new version
-            if r_match := VERSION_RGX.fullmatch(line):
+            r_match = VERSION_RGX.fullmatch(line)
+            if r_match:
                 update_ver = Version.from_str(r_match["ver"])
 
             continue
@@ -431,9 +434,3 @@ async def run_sql_migrations() -> None:
                     "micro": latest_ver.micro,
                 },
             )
-
-
-async def acquire_db_conn() -> AsyncIterator["databases.core.Connection"]:
-    """Decorator to acquire a database connection for a handler."""
-    async with database.connection() as conn:
-        yield conn
