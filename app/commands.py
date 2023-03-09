@@ -2526,6 +2526,36 @@ async def clan_list(ctx: Context) -> Optional[str]:
 
     return "\n".join(msg)
 
+"""
+kurai.pw custom commands.
+"""
+
+@command(Privileges.UNRESTRICTED, hidden=True)
+async def verify(ctx: Context) -> Optional[str]:
+    """Verify Discord account."""
+    player_data = await players_repo.fetch_one(id=ctx.player.id, fetch_all_fields=True)
+    if ctx.player.discord_id or player_data['discord_id']:
+        return 'You\'re already verified.'
+
+    if len(ctx.args) != 1:
+        return 'Incorrect syntax, please use - !verify <code>.'
+    given_code = ctx.args[0]
+
+    data = await app.state.services.redis.get(
+        f"verification:{given_code}"
+    )
+
+    if data is not None and (discord_id := data.decode()):
+        # Add User Discord ID to player.
+        await app.state.services.database.execute(
+            "UPDATE `users` "
+            "SET `discord_id` = :discord_id "
+            "WHERE id = :user_id ",
+            {"user_id": ctx.player.id, "discord_id": discord_id},
+        )
+        return "You're successfully verified!\n\nJust one more thing to redeem Member role on our Discord server, type 'k.letme' to our bot on the Discord server.\n\nEnjoy!"
+    return 'Failed to find that code, please try again, or contact our staff.'
+
 
 class CommandResponse(TypedDict):
     resp: Optional[str]
@@ -2584,9 +2614,11 @@ async def process_commands(
                 res = "An exception occurred when running the command."
 
             if res is not None:
-                # we have a message to return, include elapsed time
-                elapsed = app.logging.magnitude_fmt_time(clock_ns() - start_time)
-                return {"resp": f"{res} | Elapsed: {elapsed}", "hidden": cmd.hidden}
+                if not app.settings.SILENCE_ELAPSED:
+                    # we have a message to return, include elapsed time
+                    elapsed = app.logging.magnitude_fmt_time(clock_ns() - start_time)
+                    return {"resp": f"{res} | Elapsed: {elapsed}", "hidden": cmd.hidden}
+                return {"resp": res, "hidden": cmd.hidden}
             else:
                 # no message to return
                 return {"resp": None, "hidden": False}

@@ -63,6 +63,8 @@ DATADOG_APP_KEY = os.environ["DATADOG_APP_KEY"]
 DEBUG = read_bool(os.environ["DEBUG"])
 REDIRECT_OSU_URLS = read_bool(os.environ["REDIRECT_OSU_URLS"])
 
+SILENCE_ELAPSED = read_bool(os.environ["SILENCE_ELAPSED"])
+
 PP_CACHED_ACCURACIES = [int(acc) for acc in read_list(os.environ["PP_CACHED_ACCS"])]
 
 DISALLOWED_NAMES = read_list(os.environ["DISALLOWED_NAMES"])
