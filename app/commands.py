@@ -2044,80 +2044,6 @@ async def mp_pick(ctx: Context, match: Match) -> Optional[str]:
     return f"Picked {bmap.embed}. ({mods_slot})"
 
 
-@mp_commands.add(Privileges.UNRESTRICTED)
-@ensure_match
-async def mp_random(ctx: Context, match: Match) -> Optional[str]:
-    """ Select random map. """
-    if ctx.player is not match.host:
-        return "Only the host can do this."
-
-    random_map = []
-    diff_from, diff_to = 6, 7
-
-    if ctx.args:
-        if len(ctx.args) == 1:
-            try:
-                diff = ctx.args[0]
-                if '-' in diff:
-                    diff = diff.split('-')
-                    diff_from, diff_to = float(diff[0]), float(diff[1])
-                else:
-                    diff = float(ctx.args[0])
-                    diff_from, diff_to = diff - .5, diff + .5
-            except:
-                return "Invalid syntax: !mp random <from(number)> <to(number)>, for example - !mp random 6-8"
-        elif len(ctx.args) == 2:
-            try:
-                diff_from, diff_to = float(ctx.args[0]), float(ctx.args[1])
-            except:
-                return "Invalid syntax: !mp random <from(number)> <to(number)>, for example - !mp random 6-8"
-        else:
-            return "Invalid syntax: !mp random <from(number)> <to(number)>, for example - !mp random 6-8"
-
-    # Additional check to avoid exceptions
-    # when for e.g player request diff_from 10 and diff_to 10 or diff_to 2
-    if diff_from > diff_to:
-        diff_from, diff_to = diff_to, diff_from
-    elif diff_from == diff_to:
-        diff_from -= .5
-        diff_to += .5
-
-    i = 0
-    while True:
-        random_map = await app.state.services.database.fetch_all(
-            "SELECT `id` "
-            "FROM `maps` "
-            "WHERE `diff` >= :diff_from "
-            "AND `diff` <= :diff_to "
-            "ORDER BY RAND() "
-            "LIMIT 1 ",
-            {'diff_from': diff_from, 'diff_to': diff_to},
-        )
-
-        i += 1
-        # Avoid infinite loop.
-        if i == 21 or random_map == []:
-            return "Oh, crap, seems like the server cannot find a map with those parameters."
-
-        if random_map[0]['id'] != match.map_id:
-            break
-
-    bmap = await Beatmap.from_bid(random_map[0]['id'])
-    if not bmap:
-        return "Beatmap not found."
-
-    match.map_id = bmap.id
-    match.map_md5 = bmap.md5
-    match.map_name = bmap.full_name
-
-    match.mode = bmap.mode
-
-    match.enqueue_state()
-    return f"Selected: {bmap.embed}."
-
-
-
-
 """ Mappool management commands
 # The commands below are for event managers
 # and tournament hosts/referees to help automate
@@ -2526,6 +2452,108 @@ async def clan_list(ctx: Context) -> Optional[str]:
 
     return "\n".join(msg)
 
+"""
+kurai.pw custom commands.
+"""
+
+@command(Privileges.UNRESTRICTED, hidden=True)
+async def verify(ctx: Context) -> Optional[str]:
+    """Verify Discord account."""
+    player_data = await players_repo.fetch_one(id=ctx.player.id, fetch_all_fields=True)
+    if ctx.player.discord_id or player_data['discord_id']:
+        return 'You\'re already verified.'
+
+    if len(ctx.args) != 1:
+        return 'Incorrect syntax, please use - !verify <code>.'
+    given_code = ctx.args[0]
+
+    data = await app.state.services.redis.get(
+        f"verification:{given_code}"
+    )
+
+    if data is not None and (discord_id := data.decode()):
+        # Add User Discord ID to player.
+        await app.state.services.database.execute(
+            "UPDATE `users` "
+            "SET `discord_id` = :discord_id "
+            "WHERE id = :user_id ",
+            {"user_id": ctx.player.id, "discord_id": discord_id},
+        )
+        return "You're successfully verified!\n\nJust one more thing to redeem Member role on our Discord server, type 'k.letme' to our bot on the Discord server.\n\nEnjoy!"
+    return 'Failed to find that code, please try again, or contact our staff.'
+
+
+@mp_commands.add(Privileges.UNRESTRICTED)
+@ensure_match
+async def mp_random(ctx: Context, match: Match) -> Optional[str]:
+    """ Select random map. """
+    if ctx.player is not match.host:
+        return "Only the host can do this."
+
+    random_map = []
+    diff_from, diff_to = 6, 7
+
+    if ctx.args:
+        if len(ctx.args) == 1:
+            try:
+                diff = ctx.args[0]
+                if '-' in diff:
+                    diff = diff.split('-')
+                    diff_from, diff_to = float(diff[0]), float(diff[1])
+                else:
+                    diff = float(ctx.args[0])
+                    diff_from, diff_to = diff - .5, diff + .5
+            except:
+                return "Invalid syntax: !mp random <from(number)> <to(number)>, for example - !mp random 6-8"
+        elif len(ctx.args) == 2:
+            try:
+                diff_from, diff_to = float(ctx.args[0]), float(ctx.args[1])
+            except:
+                return "Invalid syntax: !mp random <from(number)> <to(number)>, for example - !mp random 6-8"
+        else:
+            return "Invalid syntax: !mp random <from(number)> <to(number)>, for example - !mp random 6-8"
+
+    # Additional check to avoid exceptions
+    # when for e.g player request diff_from 10 and diff_to 10 or diff_to 2
+    if diff_from > diff_to:
+        diff_from, diff_to = diff_to, diff_from
+    elif diff_from == diff_to:
+        diff_from -= .5
+        diff_to += .5
+
+    i = 0
+    while True:
+        random_map = await app.state.services.database.fetch_all(
+            "SELECT `id` "
+            "FROM `maps` "
+            "WHERE `diff` >= :diff_from "
+            "AND `diff` <= :diff_to "
+            "ORDER BY RAND() "
+            "LIMIT 1 ",
+            {'diff_from': diff_from, 'diff_to': diff_to},
+        )
+
+        i += 1
+        # Avoid infinite loop.
+        if i == 21 or random_map == []:
+            return "Oh, crap, seems like the server cannot find a map with those parameters."
+
+        if random_map[0]['id'] != match.map_id:
+            break
+
+    bmap = await Beatmap.from_bid(random_map[0]['id'])
+    if not bmap:
+        return "Beatmap not found."
+
+    match.map_id = bmap.id
+    match.map_md5 = bmap.md5
+    match.map_name = bmap.full_name
+
+    match.mode = bmap.mode
+
+    match.enqueue_state()
+    return f"Selected: {bmap.embed}."
+
 
 class CommandResponse(TypedDict):
     resp: Optional[str]
@@ -2584,9 +2612,11 @@ async def process_commands(
                 res = "An exception occurred when running the command."
 
             if res is not None:
-                # we have a message to return, include elapsed time
-                elapsed = app.logging.magnitude_fmt_time(clock_ns() - start_time)
-                return {"resp": f"{res} | Elapsed: {elapsed}", "hidden": cmd.hidden}
+                if not app.settings.SILENCE_ELAPSED:
+                    # we have a message to return, include elapsed time
+                    elapsed = app.logging.magnitude_fmt_time(clock_ns() - start_time)
+                    return {"resp": f"{res} | Elapsed: {elapsed}", "hidden": cmd.hidden}
+                return {"resp": res, "hidden": cmd.hidden}
             else:
                 # no message to return
                 return {"resp": None, "hidden": False}

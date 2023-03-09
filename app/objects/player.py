@@ -260,6 +260,9 @@ class Player:
         else:
             self.token = self.generate_token()
 
+        # generate a token if not given
+        self.discord_id = extras.get("discord_id", None)
+
         # ensure priv is of type Privileges
         self.priv = priv if isinstance(priv, Privileges) else Privileges(priv)
 
