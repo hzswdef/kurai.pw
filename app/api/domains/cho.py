@@ -779,10 +779,9 @@ async def login(
     # show up with the yellow name in-game, but everyone
     # gets osu!direct & other in-game perks).
 
-    # @TODO Restore osu!supporter when osu!direct get fixed.
-    # data += app.packets.bancho_privileges(
-    #     player.bancho_priv | ClientPrivileges.SUPPORTER,
-    # )
+    data += app.packets.bancho_privileges(
+        player.bancho_priv | ClientPrivileges.SUPPORTER,
+    )
 
     data += WELCOME_NOTIFICATION
 
