@@ -1869,8 +1869,6 @@ async def register_account(
     email: str = Form(..., alias="user[user_email]"),
     pw_plaintext: str = Form(..., alias="user[password]"),
     check: int = Form(...),
-    cloudflare_country: Optional[str] = Header(None, alias="CF-IPCountry"),
-    #
     # TODO: allow nginx to be optional
     forwarded_ip: str = Header(..., alias="X-Forwarded-For"),
     real_ip: str = Header(..., alias="X-Real-IP"),
@@ -1880,6 +1878,12 @@ async def register_account(
             content=b"Missing required params",
             status_code=status.HTTP_400_BAD_REQUEST,
         )
+
+    # WARNING! Deprecated, sometimes works wrong.
+    # cloudflare_country = Header(None, alias="CF-IPCountry")
+
+    # Override CloudFlare country.
+    cloudflare_country = request.headers.get('cf-ipcountry')
 
     # ensure all args passed
     # are safe for registration.
