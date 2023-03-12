@@ -47,6 +47,8 @@ from app.constants.mods import Mods
 from app.constants.mods import SPEED_CHANGING_MODS
 from app.constants.privileges import ClanPrivileges
 from app.constants.privileges import Privileges
+from app.constants.emoji import SCORE_EMOJI
+from app.discord import Webhook, Embed
 from app.objects.beatmap import Beatmap
 from app.objects.beatmap import ensure_local_osu_file
 from app.objects.beatmap import RankedStatus
@@ -638,7 +640,9 @@ async def _map(ctx: Context) -> Optional[str]:
         return "Please /np a map first!"
 
     bmap = ctx.player.last_np["bmap"]
+
     new_status = RankedStatus(status_to_id(ctx.args[0]))
+    previous_status = RankedStatus(bmap.status)
 
     if ctx.args[1] == "map":
         if bmap.status == new_status:
@@ -685,6 +689,33 @@ async def _map(ctx: Context) -> Optional[str]:
             "UPDATE map_requests SET active = 0 WHERE map_id IN :map_ids",
             {"map_ids": map_ids},
         )
+
+    if webhook_url := app.settings.DISCORD_BEATMAPS_UPDATES_WEBHOOK:
+        status_from_emoji = SCORE_EMOJI[previous_status.__str__().lower()] if previous_status.__str__().lower() in SCORE_EMOJI.keys() else SCORE_EMOJI['other']
+        status_to_emoji = SCORE_EMOJI[new_status.__str__().lower()] if new_status.__str__().lower() in SCORE_EMOJI.keys() else SCORE_EMOJI['other']
+
+        embed = Embed(
+            title=f'{bmap.artist} - {bmap.title}',
+            color=0xb873be,
+            description=f"Updated from {status_from_emoji} to {status_to_emoji}",
+            url=bmap.url
+        )
+        embed.set_author(
+            name=ctx.player.name,
+            icon_url=f"https://a.kurai.pw/{ctx.player.id}?{time.time()}",
+        )
+        embed.add_field(
+            name='Mapped by',
+            value=bmap.creator,
+            inline=True,
+        )
+        embed.set_image(
+            url=f"https://assets.ppy.sh/beatmaps/{bmap.set_id}/covers/cover.jpg?{time.time()}"
+        )
+
+        webhook = Webhook(webhook_url)
+        webhook.add_embed(embed)
+        await webhook.post(app.state.services.http_client)
 
     return f"{bmap.embed} updated to {new_status!s}."
 
