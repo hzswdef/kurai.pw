@@ -547,7 +547,7 @@ async def api_get_map_scores(
     query = [
         "SELECT s.id, s.map_md5, s.score, s.pp, s.acc, s.max_combo, s.mods, "
         "s.n300, s.n100, s.n50, s.nmiss, s.ngeki, s.nkatu, s.grade, s.status, "
-        "s.mode, s.play_time, s.time_elapsed, s.userid, s.perfect "
+        "s.mode, s.play_time, s.time_elapsed, s.userid, s.perfect, "
         "u.name player_name, "
         "c.id clan_id, c.name clan_name, c.tag clan_tag "
         "FROM scores s "
