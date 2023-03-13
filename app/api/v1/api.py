@@ -17,6 +17,8 @@ from fastapi.responses import StreamingResponse
 
 import app.packets
 import app.state
+import app.usecases
+import app.settings
 from app.constants import regexes
 from app.constants.gamemodes import GameMode
 from app.constants.mods import Mods
@@ -26,6 +28,7 @@ from app.objects.player import Player
 from app.repositories import players as players_repo
 from app.repositories import scores as scores_repo
 from app.repositories import stats as stats_repo
+from app.usecases.performance import ScoreParams
 
 AVATARS_PATH = SystemPath.cwd() / ".data/avatars"
 BEATMAPS_PATH = SystemPath.cwd() / ".data/osu"
@@ -902,6 +905,66 @@ async def api_get_pool(
                 f"{mods!r}{slot}": format_map_basic(bmap)
                 for (mods, slot), bmap in pool.maps.items()
             },
+        },
+    )
+
+
+@router.get('/get_score_pp_range')
+async def get_score_pp_range(
+    score_id: int = Query(default=0, alias='sid'),
+):
+    """Return pp for different acc's of given score."""
+
+    # @TODO Calculate pp for play with 100 instead of misses.
+
+    if score_id == 0:
+        return ORJSONResponse(
+            {"status": "Please specify score_id."},
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+
+    bmap_data = await app.state.services.database.fetch_one(
+        "SELECT map_md5, mods, mode, acc "
+        "FROM scores "
+        "WHERE id = :score_id ",
+        {'score_id': score_id}
+    )
+
+    if bmap_data == {}:
+        return ORJSONResponse(
+            {"status": "Score not found."},
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+
+    bmap = await Beatmap.from_md5(bmap_data['map_md5'])
+    osu_file_path = BEATMAPS_PATH / f"{bmap.id}.osu"
+
+    scores = [
+        ScoreParams(
+            mode=bmap_data['mode'] % 4,
+            mods=bmap_data['mods'],
+            acc=acc,
+        )
+        for acc in app.settings.PP_CACHED_ACCURACIES
+    ]
+
+    results = app.usecases.performance.calculate_performances(
+        osu_file_path=str(osu_file_path),
+        scores=scores,
+    )
+
+    response = {}
+
+    for acc, result in zip(
+        app.settings.PP_CACHED_ACCURACIES,
+        results,
+    ):
+        response[acc] = result
+
+    return ORJSONResponse(
+        {
+            'status': 'success',
+            'pp': response
         },
     )
 
