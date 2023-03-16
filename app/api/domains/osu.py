@@ -43,6 +43,7 @@ from fastapi.routing import APIRouter
 from py3rijndael import Pkcs7Padding
 from py3rijndael import RijndaelCbc
 from starlette.datastructures import UploadFile as StarletteUploadFile
+from requests import get
 
 import app.packets
 import app.settings
@@ -1941,9 +1942,22 @@ async def register_account(
         pw_bcrypt = bcrypt.hashpw(pw_md5, bcrypt.gensalt())
         app.state.cache.bcrypt[pw_bcrypt] = pw_md5  # cache result for login
 
-        ip = app.state.services.ip_resolver.get_ip(request.headers)
+        if cloudflare_country:
+            # best case, dev has enabled ip geolocation in the
+            # network tab of cloudflare, so it sends the iso code.
+            country_acronym = cloudflare_country.lower()
+        else:
+            ip = app.state.services.ip_resolver.get_ip(request.headers)
 
-        geoloc = await app.state.services.fetch_geoloc(ip, request.headers)
+            endpoint = f'https://ipinfo.io/{ip}/json'
+            response = get(endpoint, verify=True)
+
+            if response.status_code == 200:
+                data = response.json()
+
+                country_acronym = data['country'].lower()
+            else:
+                country_acronym = 'xx'
 
         async with app.state.services.database.transaction():
             # add to `users` table.

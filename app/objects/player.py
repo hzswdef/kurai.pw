@@ -24,7 +24,7 @@ from app.constants.gamemodes import GameMode
 from app.constants.mods import Mods
 from app.constants.privileges import ClientPrivileges
 from app.constants.privileges import Privileges
-from app.discord import Webhook
+from app.discord import Webhook, Embed
 from app.logging import Ansi
 from app.logging import log
 from app.objects.channel import Channel
@@ -533,7 +533,29 @@ class Player:
 
         webhook_url = app.settings.DISCORD_AUDIT_LOG_WEBHOOK
         if webhook_url:
-            webhook = Webhook(webhook_url, content=log_msg)
+            embed = Embed(
+                color=0x000000,
+                title='Player has been restricted!',
+            )
+            embed.set_author(
+                name=admin.name,
+                icon_url=f"https://a.{app.settings.DOMAIN}/{admin.id}?{time.time()}",
+                url=f'https://{app.settings.DOMAIN}/u/{admin.id}',
+            )
+            embed.add_field(
+                name='Player',
+                value=self.name,
+                inline=True,
+            )
+            embed.add_field(
+                name='Reason',
+                value=reason,
+                inline=True,
+            )
+
+            webhook = Webhook(webhook_url)
+            webhook.add_embed(embed=embed)
+
             await webhook.post(app.state.services.http_client)
 
         # refresh their client state
@@ -571,7 +593,29 @@ class Player:
 
         webhook_url = app.settings.DISCORD_AUDIT_LOG_WEBHOOK
         if webhook_url:
-            webhook = Webhook(webhook_url, content=log_msg)
+            embed = Embed(
+                color=0x000000,
+                title='Player has been unrestricted!',
+            )
+            embed.set_author(
+                name=admin.name,
+                icon_url=f"https://a.{app.settings.DOMAIN}/{admin.id}?{time.time()}",
+                url=f'https://{app.settings.DOMAIN}/u/{admin.id}',
+            )
+            embed.add_field(
+                name='Player',
+                value=self.name,
+                inline=True,
+            )
+            embed.add_field(
+                name='Reason',
+                value=reason,
+                inline=True,
+            )
+
+            webhook = Webhook(webhook_url)
+            webhook.add_embed(embed=embed)
+
             await webhook.post(app.state.services.http_client)
 
         if self.online:
