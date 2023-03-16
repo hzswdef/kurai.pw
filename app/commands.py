@@ -554,6 +554,24 @@ async def request(ctx: Context) -> Optional[str]:
         {"map_id": bmap.id, "user_id": ctx.player.id},
     )
 
+    webhook_url = app.settings.DISCORD_BEATMAPS_REQUESTS_WEBHOOK
+    if webhook_url:
+        embed = Embed(
+            color=0x000000,
+            title='New requested beatmap!',
+            description=f'**{ctx.player.name}** requested **[{bmap.artist} - {bmap.title} ({bmap.version})](https://{app.settings.DOMAIN}/{bmap.set_id}#{bmap.mode}/{bmap.id})** to {SCORE_EMOJI["ranked"]} or {SCORE_EMOJI["loved"]}',
+        )
+        embed.set_author(
+            name=ctx.player.name,
+            icon_url=f"https://a.{app.settings.DOMAIN}/{ctx.player.id}?{time.time()}",
+            url=f'https://{app.settings.DOMAIN}/u/{ctx.player.id}',
+        )
+
+        webhook = Webhook(webhook_url)
+        webhook.add_embed(embed=embed)
+
+        await webhook.post(app.state.services.http_client)
+
     return "Request submitted."
 
 
@@ -702,7 +720,8 @@ async def _map(ctx: Context) -> Optional[str]:
         )
         embed.set_author(
             name=ctx.player.name,
-            icon_url=f"https://a.kurai.pw/{ctx.player.id}?{time.time()}",
+            icon_url=f"https://a.{app.settings.DOMAIN}/{ctx.player.id}?{time.time()}",
+            url=f'https://{app.settings.DOMAIN}/u/{ctx.player.id}',
         )
         embed.add_field(
             name='Mapped by',

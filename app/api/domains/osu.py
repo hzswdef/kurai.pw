@@ -43,6 +43,7 @@ from fastapi.routing import APIRouter
 from py3rijndael import Pkcs7Padding
 from py3rijndael import RijndaelCbc
 from starlette.datastructures import UploadFile as StarletteUploadFile
+from requests import get
 
 import app.packets
 import app.settings
@@ -1951,28 +1952,17 @@ async def register_account(
             # network tab of cloudflare, so it sends the iso code.
             country_acronym = cloudflare_country.lower()
         else:
-            # backup method, get the user's ip and
-            # do a db lookup to get their country.
             ip = app.state.services.ip_resolver.get_ip(request.headers)
 
-            if not ip.is_private:
-                if app.state.services.geoloc_db is not None:
-                    # decent case, dev has downloaded a geoloc db from
-                    # maxmind, so we can do a local db lookup. (~1-5ms)
-                    # https://www.maxmind.com/en/home
-                    geoloc = app.state.services.fetch_geoloc_db(ip)
-                else:
-                    # worst case, we must do an external db lookup
-                    # using a public api. (depends, `ping ip-api.com`)
-                    geoloc = await app.state.services.fetch_geoloc_web(ip)
+            endpoint = f'https://ipinfo.io/{ip}/json'
+            response = get(endpoint, verify=True)
 
-                if geoloc is not None:
-                    country_acronym = geoloc["country"]["acronym"]
-                else:
-                    country_acronym = "xx"
+            if response.status_code == 200:
+                data = response.json()
+
+                country_acronym = data['country'].lower()
             else:
-                # localhost, unknown country
-                country_acronym = "xx"
+                country_acronym = 'xx'
 
         async with app.state.services.database.transaction():
             # add to `users` table.
