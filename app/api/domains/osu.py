@@ -1955,8 +1955,7 @@ async def register_account(
         # ip = app.state.services.ip_resolver.get_ip(request.headers)
 
 
-        # endpoint = f'https://ipinfo.io/{real_ip}/json'
-        endpoint = f'https://ipinfo.io/95.105.65.73/json'
+        endpoint = f'https://ipinfo.io/{real_ip}/json'
         response = get(endpoint, verify=True)
 
         if response.status_code == 200:
