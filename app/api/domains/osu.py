@@ -1870,6 +1870,7 @@ async def register_account(
     email: str = Form(..., alias="user[user_email]"),
     pw_plaintext: str = Form(..., alias="user[password]"),
     check: int = Form(...),
+    cloudflare_country: Optional[str] = Header(None, alias="CF-IPCountry"),
     # TODO: allow nginx to be optional
     forwarded_ip: str = Header(..., alias="X-Forwarded-For"),
     real_ip: str = Header(..., alias="X-Real-IP"),
@@ -1880,10 +1881,11 @@ async def register_account(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
+    # @TODO Remove later.
     # cloudflare_country_code = Header(None, alias="HTTP_CF_IPCOUNTRY")
     #
     # if not cloudflare_country_code:
-    cloudflare_country_code: Optional[str] = Header(None, alias="CF-IPCountry")
+    # cloudflare_country_code: Optional[str] = Header(None, alias="CF-IPCountry")
 
     # ensure all args passed
     # are safe for registration.
@@ -1948,8 +1950,8 @@ async def register_account(
 
         country_acronym = 'xx'
 
-        if cloudflare_country_code:
-            country_acronym = cloudflare_country_code.lower()
+        if cloudflare_country:
+            country_acronym = cloudflare_country.lower()
         else:
             ip = forwarded_ip or real_ip
 
