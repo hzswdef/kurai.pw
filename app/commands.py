@@ -559,7 +559,7 @@ async def request(ctx: Context) -> Optional[str]:
         embed = Embed(
             color=0x000000,
             title='New requested beatmap!',
-            description=f'**{ctx.player.name}** requested **[{bmap.artist} - {bmap.title} ({bmap.version})](https://{app.settings.DOMAIN}/{bmap.set_id}#{bmap.mode}/{bmap.id})** to {SCORE_EMOJI["ranked"]} or {SCORE_EMOJI["loved"]}',
+            description=f'**{ctx.player.name}** requested **[{bmap.artist} - {bmap.title} ({bmap.version})](https://osu.{app.settings.DOMAIN}/beatmapsets/{bmap.set_id}#{bmap.mode}/{bmap.id})** to {SCORE_EMOJI["ranked"]} or {SCORE_EMOJI["loved"]}',
         )
         embed.set_author(
             name=ctx.player.name,
