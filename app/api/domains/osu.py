@@ -1883,7 +1883,7 @@ async def register_account(
     # cloudflare_country_code = Header(None, alias="HTTP_CF_IPCOUNTRY")
     #
     # if not cloudflare_country_code:
-    cloudflare_country_code = Header(None, alias="CF-IPCountry")
+    cloudflare_country_code: Optional[str] = Header(None, alias="CF-IPCountry")
 
     # ensure all args passed
     # are safe for registration.
