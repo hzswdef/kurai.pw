@@ -42,6 +42,7 @@ from fastapi.responses import Response
 from fastapi.routing import APIRouter
 from py3rijndael import Pkcs7Padding
 from py3rijndael import RijndaelCbc
+from requests import get
 from starlette.datastructures import UploadFile as StarletteUploadFile
 
 import app.packets
@@ -1879,7 +1880,8 @@ async def register_account(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    # cloudflare_country = Header(None, alias="CF-IPCountry")
+    # Used to detect country of player over CloudFlare Full SSL.
+    cloudflare_visitor_ip = Header(None, alias="CF-Connecting-IP")
 
     # ensure all args passed
     # are safe for registration.
@@ -1943,6 +1945,15 @@ async def register_account(
         app.state.cache.bcrypt[pw_bcrypt] = pw_md5  # cache result for login
 
         country_acronym = 'xx'
+
+        if cloudflare_visitor_ip:
+            endpoint = f'https://ipinfo.io/{cloudflare_visitor_ip}/json'
+            response = get(endpoint, verify=True)
+
+            if response.status_code == 200:
+                data = response.json()
+
+                country_acronym = data['country'].lower()
 
         async with app.state.services.database.transaction():
             # add to `users` table.

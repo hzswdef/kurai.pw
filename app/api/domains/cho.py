@@ -573,24 +573,25 @@ async def login(
         fetch_all_fields=True,
     )
 
-    if user_info['country'] == 'xx':
-        endpoint = f'https://ipinfo.io/{str(ip)}/json'
-        response = get(endpoint, verify=True)
-
-        if response.status_code == 200:
-            data = response.json()
-
-            country_acronym = data['country'].lower()
-
-            await db_conn.execute(
-                "UPDATE users "
-                "SET country = :country_code "
-                "WHERE id = :id ",
-                {
-                    "id": user_info["id"],
-                    "country_code": country_acronym,
-                },
-            )
+    # @TODO Removed if unnecessary.
+    # if user_info['country'] == 'xx':
+    #     endpoint = f'https://ipinfo.io/{str(ip)}/json'
+    #     response = get(endpoint, verify=True)
+    #
+    #     if response.status_code == 200:
+    #         data = response.json()
+    #
+    #         country_acronym = data['country'].lower()
+    #
+    #         await db_conn.execute(
+    #             "UPDATE users "
+    #             "SET country = :country_code "
+    #             "WHERE id = :id ",
+    #             {
+    #                 "id": user_info["id"],
+    #                 "country_code": country_acronym,
+    #             },
+    #         )
 
     if user_info is None:
         # no account by this name exists.
