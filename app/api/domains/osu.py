@@ -1880,10 +1880,10 @@ async def register_account(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    cloudflare_country_code = Header(None, alias="HTTP_CF_IPCOUNTRY")
-
-    if not cloudflare_country_code:
-        cloudflare_country_code = Header(None, alias="CF-IPCountry")
+    # cloudflare_country_code = Header(None, alias="HTTP_CF_IPCOUNTRY")
+    #
+    # if not cloudflare_country_code:
+    cloudflare_country_code = Header(None, alias="CF-IPCountry")
 
     # ensure all args passed
     # are safe for registration.
