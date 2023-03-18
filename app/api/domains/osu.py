@@ -42,8 +42,8 @@ from fastapi.responses import Response
 from fastapi.routing import APIRouter
 from py3rijndael import Pkcs7Padding
 from py3rijndael import RijndaelCbc
-from requests import get
 from starlette.datastructures import UploadFile as StarletteUploadFile
+from requests import get
 
 import app.packets
 import app.settings
@@ -1870,7 +1870,6 @@ async def register_account(
     email: str = Form(..., alias="user[user_email]"),
     pw_plaintext: str = Form(..., alias="user[password]"),
     check: int = Form(...),
-    cloudflare_country: Optional[str] = Header(None, alias="CF-IPCountry"),
     # TODO: allow nginx to be optional
     forwarded_ip: str = Header(..., alias="X-Forwarded-For"),
     real_ip: str = Header(..., alias="X-Real-IP"),
@@ -1881,11 +1880,11 @@ async def register_account(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    # @TODO Remove later.
-    # cloudflare_country_code = Header(None, alias="HTTP_CF_IPCOUNTRY")
-    #
-    # if not cloudflare_country_code:
-    # cloudflare_country_code: Optional[str] = Header(None, alias="CF-IPCountry")
+    # WARNING! Deprecated, sometimes works wrong.
+    # cloudflare_country = Header(None, alias="CF-IPCountry")
+
+    # Override CloudFlare country.
+    cloudflare_country = request.headers.get('cf-ipcountry')
 
     # ensure all args passed
     # are safe for registration.
@@ -1948,12 +1947,12 @@ async def register_account(
         pw_bcrypt = bcrypt.hashpw(pw_md5, bcrypt.gensalt())
         app.state.cache.bcrypt[pw_bcrypt] = pw_md5  # cache result for login
 
-        country_acronym = 'xx'
-
         if cloudflare_country:
+            # best case, dev has enabled ip geolocation in the
+            # network tab of cloudflare, so it sends the iso code.
             country_acronym = cloudflare_country.lower()
         else:
-            ip = forwarded_ip or real_ip
+            ip = app.state.services.ip_resolver.get_ip(request.headers)
 
             endpoint = f'https://ipinfo.io/{ip}/json'
             response = get(endpoint, verify=True)
@@ -1962,6 +1961,8 @@ async def register_account(
                 data = response.json()
 
                 country_acronym = data['country'].lower()
+            else:
+                country_acronym = 'xx'
 
         async with app.state.services.database.transaction():
             # add to `users` table.
