@@ -1949,7 +1949,7 @@ async def register_account(
         country_acronym = 'xx'
 
         if cloudflare_country_code:
-            country_acronym = cloudflare_country_code.lower()
+            country_acronym = cloudflare_country_code
         else:
             ip = forwarded_ip or real_ip
 
