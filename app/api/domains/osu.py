@@ -1880,10 +1880,10 @@ async def register_account(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    cloudflare_country_code = Header(None, alias="HTTP_CF_IPCOUNTRY")
+    # Used to detect country of player over CloudFlare Full SSL.
+    # cloudflare_visitor_ip = Header(None, alias="CF-Connecting-IP")
 
-    if not cloudflare_country_code:
-        cloudflare_country_code = Header(None, alias="CF-IPCountry")
+    cloudflare_visitor_ip = Header(None, alias="HTTP_CF_CONNECTING_IP")
 
     # ensure all args passed
     # are safe for registration.
@@ -1948,18 +1948,14 @@ async def register_account(
 
         country_acronym = 'xx'
 
-        if cloudflare_country_code:
-            country_acronym = cloudflare_country_code
-        else:
-            ip = forwarded_ip or real_ip
+        # if cloudflare_visitor_ip:
+        endpoint = f'https://ipinfo.io/{forwarded_ip}/json'
+        response = get(endpoint, verify=True)
 
-            endpoint = f'https://ipinfo.io/{ip}/json'
-            response = get(endpoint, verify=True)
+        if response.status_code == 200:
+            data = response.json()
 
-            if response.status_code == 200:
-                data = response.json()
-
-                country_acronym = data['country'].lower()
+            country_acronym = data['country'].lower()
 
         async with app.state.services.database.transaction():
             # add to `users` table.
