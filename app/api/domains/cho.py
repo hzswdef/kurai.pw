@@ -583,9 +583,9 @@ async def login(
             country_acronym = data['country'].lower()
 
             await db_conn.execute(
-                "UPDATE users "
-                "SET country = :country_code "
-                "WHERE id = :id ",
+                "UPDATE USERS "
+                "SET country = ':country_code' "
+                "WHERE id = :id",
                 {
                     "id": user_info["id"],
                     "country_code": country_acronym,
