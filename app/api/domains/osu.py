@@ -1880,11 +1880,10 @@ async def register_account(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    # WARNING! Deprecated, sometimes works wrong.
     # cloudflare_country = Header(None, alias="CF-IPCountry")
 
     # Override CloudFlare country.
-    cloudflare_country = request.headers.get('cf-ipcountry')
+    cloudflare_country = request.headers.get('CF-IPCountry')
 
     # ensure all args passed
     # are safe for registration.

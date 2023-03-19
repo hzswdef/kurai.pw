@@ -21,7 +21,7 @@ import app.usecases
 import app.settings
 from app.constants import regexes
 from app.constants.gamemodes import GameMode
-from app.constants.mods import Mods
+from app.constants.mods import Mods, mod2modstr_dict
 from app.objects.beatmap import Beatmap
 from app.objects.clan import Clan
 from app.objects.player import Player
@@ -182,6 +182,9 @@ async def api_get_player_info(
             mode_stats["country_rank"] = (
                 country_rank + 1 if country_rank is not None else 0
             )
+
+            if mode_stats["rank"] and not mode_stats["country_rank"]:
+                mode_stats["country_rank"] = 1
 
             mode = str(mode_stats.pop("mode"))
             api_data["stats"][mode] = mode_stats
@@ -374,6 +377,7 @@ async def api_get_player_scores(
     for row in rows:
         bmap = await Beatmap.from_md5(row.pop("map_md5"))
         row["beatmap"] = bmap.as_dict if bmap else None
+        row['mods_readable'] = Mods(row['mods']).__repr__()
 
     player_info = {
         "id": player.id,
