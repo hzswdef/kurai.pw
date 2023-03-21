@@ -6,6 +6,7 @@ import struct
 from pathlib import Path as SystemPath
 from typing import Literal
 from typing import Optional
+from io import BytesIO
 
 import databases.core
 from fastapi import APIRouter
@@ -662,7 +663,7 @@ async def api_get_replay(
         "FROM scores s "
         "INNER JOIN users u ON u.id = s.userid "
         "INNER JOIN maps m ON m.md5 = s.map_md5 "
-        "WHERE f = :score_id",
+        "WHERE s.id = :score_id",
         {"score_id": score_id},
     )
 
@@ -730,7 +731,7 @@ async def api_get_replay(
 
     # stream data back to the client
     return StreamingResponse(
-        replay_data,
+        BytesIO(replay_data),
         media_type="application/octet-stream",
         headers={
             "Content-Description": "File Transfer",
