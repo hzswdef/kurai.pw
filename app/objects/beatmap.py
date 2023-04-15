@@ -651,9 +651,14 @@ class BeatmapSet:
                     map_md5s_to_delete.add(old_map.md5)
                 else:
                     new_map = new_maps[old_id]
-                    new_ranked_status = RankedStatus.from_osuapi(
-                        int(new_map["approved"]),
-                    )
+                    # Bullshit :skull:, and stfu.
+                    if old_map.frozen:
+                        new_ranked_status = old_map.status
+                    else:
+                        new_ranked_status = RankedStatus.from_osuapi(
+                            int(new_map["approved"]),
+                        )
+
                     if (
                         old_map.md5 != new_map["file_md5"]
                         or old_map.status != new_ranked_status
@@ -930,7 +935,10 @@ class BeatmapSet:
         # TODO: this can be done less often for certain types of maps,
         # such as ones that're ranked on bancho and won't be updated,
         # and perhaps ones that haven't been updated in a long time.
-        if not did_api_request and bmap_set._cache_expired():
+
+        # Probably issue with unrank frozen maps will be on bmap_set._cache_expired() method, idk, temporary solution.
+        # if not did_api_request and bmap_set._cache_expired():
+        if not did_api_request:
             await bmap_set._update_if_available()
 
         # cache the beatmap set, and beatmaps
