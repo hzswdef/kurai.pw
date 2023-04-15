@@ -650,7 +650,7 @@ def write_match(m: Match, send_pw: bool = True) -> bytearray:
             ret += s.player.id.to_bytes(4, "little")
 
     ret += m.host.id.to_bytes(4, "little")
-    ret.extend((m.mode % 4, m.win_condition, m.team_type, m.freemods))
+    ret.extend((m.mode.as_vanilla, m.win_condition, m.team_type, m.freemods))
 
     if m.freemods:
         for s in m.slots:

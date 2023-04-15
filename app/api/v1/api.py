@@ -379,8 +379,9 @@ async def api_get_player_scores(
         bmap = await Beatmap.from_md5(row.pop("map_md5"))
         row["beatmap"] = bmap.as_dict if bmap else None
 
-        mods = Mods(row['mods']).__repr__()
-        if ('DT' in mods) and ('NC' in  mods):
+        mods = repr(Mods(row['mods']))
+        # Remove DT from readable mods if score with NC.
+        if (row['mods'] != 0) and ('NC' in mods):
             mods = mods.replace('DT', '')
         row['mods_readable'] = mods
 
