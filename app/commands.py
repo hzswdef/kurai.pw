@@ -544,8 +544,11 @@ async def request(ctx: Context) -> Optional[str]:
 
     bmap = ctx.player.last_np["bmap"]
 
-    if bmap.status != RankedStatus.Pending:
-        return "Only pending maps may be requested for status change."
+    if bmap.status in [RankedStatus.Ranked, RankedStatus.Approved]:
+        return "You cannot request already ranked map."
+
+    if bmap.frozen:
+        return "Map already been updated by our nomination team."
 
     await app.state.services.database.execute(
         "INSERT INTO map_requests "
