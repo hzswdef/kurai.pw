@@ -65,6 +65,15 @@ REDIRECT_OSU_URLS = read_bool(os.environ["REDIRECT_OSU_URLS"])
 
 SILENCE_ELAPSED = read_bool(os.environ["SILENCE_ELAPSED"])
 
+PP_CAP = {
+    'std': {
+        'vn': os.environ["PP_STD_VN_CAP"],
+        'rx': os.environ["PP_STD_RX_CAP"],
+        'ap': os.environ["PP_STD_AP_CAP"],
+    }
+    # @TODO Implement other or remove once overwatch will be completed.
+}
+
 PP_CACHED_ACCURACIES = [int(acc) for acc in read_list(os.environ["PP_CACHED_ACCS"])]
 
 DISALLOWED_NAMES = read_list(os.environ["DISALLOWED_NAMES"])

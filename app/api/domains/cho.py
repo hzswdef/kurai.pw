@@ -379,7 +379,7 @@ WELCOME_MSG = "\n".join(
 RESTRICTED_MSG = (
     "Your account is currently in restricted mode. "
     "If you believe this is a mistake, or have waited a period "
-    "greater than 3 months, you may appeal via the form on the site."
+    "greater than 3 months, you may appeal via the post on our Discord server."
 )
 
 WELCOME_NOTIFICATION = app.packets.notification(

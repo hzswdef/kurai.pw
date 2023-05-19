@@ -845,7 +845,8 @@ async def osuSubmitModularSelector(
 
     if (  # check for pp caps on ranked & approved maps for appropriate players.
         score.bmap.awards_ranked_pp
-        and not (score.player.priv & Privileges.WHITELISTED or score.player.restricted)
+        # and not (score.player.priv & Privileges.WHITELISTED or score.player.restricted)
+        and not score.player.restricted
     ):
         # Get the PP cap for the current context.
         """# TODO: find where to put autoban pp
@@ -861,6 +862,18 @@ async def osuSubmitModularSelector(
             if score.player.online:
                 score.player.logout()
         """
+
+        pp_cap = repr(score.mode).split('!')
+        pp_cap = int(app.settings.PP_CAP[pp_cap[1]][pp_cap[0]])
+        if score.pp > pp_cap:
+            await score.player.restrict(
+                admin=app.state.sessions.bot,
+                reason=f"[{score.mode!r} {score.mods!r}] Autoban @ {score.pp:.2f}pp",
+            )
+
+            # Refresh their client state.
+            if score.player.online:
+                score.player.logout()
 
     """ Score submission checks completed; submit the score. """
 
@@ -882,11 +895,12 @@ async def osuSubmitModularSelector(
             else:
                 performance = f"{score.pp:,.2f}pp"
 
-            score.player.enqueue(
-                app.packets.notification(
-                    f"You achieved #{score.rank}! ({performance})",
-                ),
-            )
+            if not score.player.restricted:
+                score.player.enqueue(
+                    app.packets.notification(
+                        f"You achieved #{score.rank}! ({performance})",
+                    ),
+                )
 
             if score.rank == 1 and not score.player.restricted:
                 announce_chan = app.state.sessions.channels["#announce"]
