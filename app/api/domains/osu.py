@@ -865,7 +865,7 @@ async def osuSubmitModularSelector(
 
         pp_cap = repr(score.mode).split('!')
         pp_cap = int(app.settings.PP_CAP[pp_cap[1]][pp_cap[0]])
-        if score.pp > pp_cap:
+        if score.pp > pp_cap and score.bmap.status == RankedStatus.Ranked:
             await score.player.restrict(
                 admin=app.state.sessions.bot,
                 reason=f"[{score.mode!r} {score.mods!r}] Autoban @ {score.pp:.2f}pp",
