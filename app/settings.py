@@ -74,6 +74,19 @@ PP_CAP = {
     # @TODO Implement other or remove once overwatch will be completed.
 }
 
+PP_NOTIFY_CAP = {
+    'std': {
+        'vn': os.environ["PP_STD_VN_NOTIFY_CAP"],
+        'rx': os.environ["PP_STD_RX_NOTIFY_CAP"],
+        'ap': os.environ["PP_STD_AP_NOTIFY_CAP"],
+    }
+    # @TODO Implement other or remove once overwatch will be completed.
+}
+
+DISCORD_HIGH_SCORE_NOTIFICATION = os.environ["DISCORD_HIGH_SCORE_NOTIFICATION"]
+
+DISCORD_NEWBEE_NOTIFICATION = os.environ["DISCORD_NEWBEE_NOTIFICATION"]
+
 PP_CACHED_ACCURACIES = [int(acc) for acc in read_list(os.environ["PP_CACHED_ACCS"])]
 
 DISALLOWED_NAMES = read_list(os.environ["DISALLOWED_NAMES"])

@@ -71,6 +71,7 @@ from app.repositories import scores as scores_repo
 from app.repositories import stats as stats_repo
 from app.utils import escape_enum
 from app.utils import pymysql_encode
+from app.discord import Webhook, Embed
 
 
 BEATMAPS_PATH = SystemPath.cwd() / ".data/osu"
@@ -845,8 +846,7 @@ async def osuSubmitModularSelector(
 
     if (  # check for pp caps on ranked & approved maps for appropriate players.
         score.bmap.awards_ranked_pp
-        # and not (score.player.priv & Privileges.WHITELISTED or score.player.restricted)
-        and not score.player.restricted
+        and not (score.player.priv & Privileges.WHITELISTED or score.player.restricted)
     ):
         # Get the PP cap for the current context.
         """# TODO: find where to put autoban pp
@@ -863,8 +863,10 @@ async def osuSubmitModularSelector(
                 score.player.logout()
         """
 
-        pp_cap = repr(score.mode).split('!')
-        pp_cap = int(app.settings.PP_CAP[pp_cap[1]][pp_cap[0]])
+        mode = repr(score.mode).split('!')
+        pp_cap = int(app.settings.PP_CAP[mode[1]][mode[0]])
+        pp_notify_cap = int(app.settings.PP_NOTIFY_CAP[mode[1]][mode[0]])
+
         if score.pp > pp_cap and score.bmap.status == RankedStatus.Ranked:
             await score.player.restrict(
                 admin=app.state.sessions.bot,
@@ -874,6 +876,22 @@ async def osuSubmitModularSelector(
             # Refresh their client state.
             if score.player.online:
                 score.player.logout()
+        elif score.pp > pp_notify_cap and score.bmap.status == RankedStatus.Ranked:
+            webhook_url = app.settings.DISCORD_HIGH_SCORE_NOTIFICATION
+            if webhook_url:
+                embed = Embed(
+                    color=0x000000,
+                    title=f'{bmap.artist} - {bmap.title} {bmap.version}',
+                    url=f'https://osu.{app.settings.DOMAIN}/beatmapsets/{bmap.set_id}#{bmap.mode}/{bmap.id}',
+                    description=f'**[{score.player.name}](https://{app.settings.DOMAIN}/u/{score.player.id})** set **{round(score.pp)}pp** score.',
+                )
+                embed.set_footer(
+                    text=f'[{score.mode!r}] +{score.mods!r}',
+                )
+                webhook = Webhook(webhook_url)
+                webhook.add_embed(embed=embed)
+                await webhook.post(app.state.services.http_client)
+
 
     """ Score submission checks completed; submit the score. """
 
@@ -1970,7 +1988,7 @@ async def register_account(
             endpoint = f'https://ipinfo.io/{ip}/json'
             response = get(endpoint, verify=True)
 
-            if response.status_code == 200:
+            if (response.status_code == 200) and (str(ip) != '127.0.0.1'):
                 data = response.json()
 
                 country_acronym = data['country'].lower()
@@ -1991,6 +2009,17 @@ async def register_account(
 
         if app.state.services.datadog:
             app.state.services.datadog.increment("bancho.registrations")
+
+        webhook_url = app.settings.DISCORD_NEWBEE_NOTIFICATION
+        if webhook_url:
+            embed = Embed(
+                color=0x000000,
+                title=f'[{player["country"]}] {player["name"]}',
+                url=f'https://{app.settings.DOMAIN}/u/{player["id"]}',
+            )
+            webhook = Webhook(webhook_url)
+            webhook.add_embed(embed=embed)
+            await webhook.post(app.state.services.http_client)
 
         log(f"<{username} ({player['id']})> has registered!", Ansi.LGREEN)
 
