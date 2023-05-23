@@ -891,8 +891,8 @@ async def login(
             if webhook_url:
                 embed = Embed(
                     color=0x000000,
-                    title=f'[{player["country"]}] {player["name"]}',
-                    url=f'https://{app.settings.DOMAIN}/u/{player["id"]}',
+                    title=f'[{player.geoloc["country"]["acronym"].upper()}] {player.name}',
+                    url=f'https://{app.settings.DOMAIN}/u/{player.id}',
                 )
                 webhook = Webhook(webhook_url)
                 webhook.add_embed(embed=embed)
