@@ -35,6 +35,7 @@ from app.constants.mods import SPEED_CHANGING_MODS
 from app.constants.privileges import ClanPrivileges
 from app.constants.privileges import ClientPrivileges
 from app.constants.privileges import Privileges
+from app.discord import Webhook, Embed
 from app.logging import Ansi
 from app.logging import log
 from app.logging import magnitude_fmt_time
@@ -885,6 +886,17 @@ async def login(
             # this is the player's first login, verify their
             # account & send info about the server/its usage.
             await player.add_privs(Privileges.VERIFIED)
+
+            webhook_url = app.settings.DISCORD_NEWBEE_NOTIFICATION
+            if webhook_url:
+                embed = Embed(
+                    color=0x000000,
+                    title=f'[{player["country"]}] {player["name"]}',
+                    url=f'https://{app.settings.DOMAIN}/u/{player["id"]}',
+                )
+                webhook = Webhook(webhook_url)
+                webhook.add_embed(embed=embed)
+                await webhook.post(app.state.services.http_client)
 
             if player.id == 3:
                 # this is the first player registering on
