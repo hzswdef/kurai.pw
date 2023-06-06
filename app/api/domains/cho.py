@@ -1543,10 +1543,10 @@ class MatchChangeSettings(BasePacket):
 
             if player.match.prev_map_id != self.match_data.map_id:
                 # new map has been chosen, send to match chat.
-                map_url = f"https://osu.{app.settings.DOMAIN}/beatmapsets/{bmap.set_id}#{bmap.mode.to_string}/{bmap.id}"
-
-                map_embed = f"[{map_url} {self.match_data.map_name}]"
-                player.match.chat.send_bot(f"Selected: {map_embed}.")
+                if isinstance(bmap, Beatmap):
+                    map_url = f"https://osu.{app.settings.DOMAIN}/beatmapsets/{bmap.set_id}#{bmap.mode.to_string}/{bmap.id}"
+                    map_embed = f"[{map_url} {self.match_data.map_name}]"
+                    player.match.chat.send_bot(f"Selected: {map_embed}.")
 
             if bmap:
                 player.match.map_id = bmap.id
