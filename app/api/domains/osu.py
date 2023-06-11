@@ -847,26 +847,14 @@ async def osuSubmitModularSelector(
     if (  # check for pp caps on ranked & approved maps for appropriate players.
         score.bmap.awards_ranked_pp
         and not (score.player.priv & Privileges.WHITELISTED or score.player.restricted)
+        # Check only for std mode.
+        and (score.mode.as_vanilla in (0, 4, 8))
     ):
-        # Get the PP cap for the current context.
-        """# TODO: find where to put autoban pp
-        pp_cap = app.settings.AUTOBAN_PP[score.mode][score.mods & Mods.FLASHLIGHT != 0]
-
-        if score.pp > pp_cap:
-            await score.player.restrict(
-                admin=app.state.sessions.bot,
-                reason=f"[{score.mode!r} {score.mods!r}] autoban @ {score.pp:.2f}pp",
-            )
-
-            # refresh their client state
-            if score.player.online:
-                score.player.logout()
-        """
-
         mode = repr(score.mode).split('!')
         pp_cap = int(app.settings.PP_CAP[mode[1]][mode[0]])
         pp_notify_cap = int(app.settings.PP_NOTIFY_CAP[mode[1]][mode[0]])
 
+        # Restrict for very high pp score.
         if score.pp > pp_cap and score.bmap.status == RankedStatus.Ranked:
             await score.player.restrict(
                 admin=app.state.sessions.bot,
@@ -876,6 +864,7 @@ async def osuSubmitModularSelector(
             # Refresh their client state.
             if score.player.online:
                 score.player.logout()
+        # Send notification about high pp score.
         elif score.pp > pp_notify_cap and score.bmap.status == RankedStatus.Ranked:
             webhook_url = app.settings.DISCORD_HIGH_SCORE_NOTIFICATION
             if webhook_url:
