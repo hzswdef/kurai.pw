@@ -6,6 +6,7 @@ import os
 import pprint
 import random
 import secrets
+import shutil
 import signal
 import struct
 import time
@@ -1107,7 +1108,7 @@ async def wipe(ctx: Context) -> Optional[str]:
         target.logout()
 
     # Dump player scores on db.
-    os.system(f"mysqldump -u {app.settings.DB_USER} -p{app.settings.DB_PASS} {app.settings.DB_NAME} scores --where='userid={target.id}' > {dump_path}/scores.sql")
+    os.system(f"mysqldump -u {app.settings.DB_USER} -p{app.settings.DB_PASS} {app.settings.DB_NAME} scores --where='userid={target.id}' > {dump_path}/scores.sql --column-statistics=0 --no-tablespaces")
 
     # Dump player scores.
     for score in await app.state.services.database.fetch_all(
@@ -1160,7 +1161,7 @@ async def wipe(ctx: Context) -> Optional[str]:
         tar.add(path := f'{dump_path}/stats.json', arcname=os.path.basename(path))
 
     # Remove dump files since they are archived.
-    os.rmdir(dump_path)
+    shutil.rmtree(dump_path, ignore_errors=True)
 
     return f"Successfully wiped {target.name}."
 
