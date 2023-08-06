@@ -11,6 +11,8 @@ import struct
 import time
 import traceback
 import uuid
+import json
+import tarfile
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime
@@ -1074,6 +1076,93 @@ async def shutdown(ctx: Context) -> Union[Optional[str], NoReturn]:
         return f"Enqueued {ctx.trigger}."
     else:  # shutdown immediately
         os.kill(os.getpid(), _signal)
+
+
+
+@command(Privileges.ADMINISTRATOR, hidden=True)
+async def wipe(ctx: Context) -> Optional[str]:
+    """Wipe player scores."""
+    if len(ctx.args) < 1:
+        return "Invalid syntax: !wipe <user_id>"
+
+    target = await app.state.sessions.players.from_cache_or_sql(id=ctx.args[0])
+    current_time = time.time()
+
+    if not target:
+        return "Couldn't find the specified user."
+
+    if not os.path.exists('.data/wipe'):
+        os.mkdir('.data/wipe')
+
+    if not os.path.exists(f'.data/wipe/{ctx.args[0]}'):
+        os.mkdir(f'.data/wipe/{ctx.args[0]}')
+
+    base_path = os.getcwd() + f'/.data/wipe'
+    dump_path = f'{base_path}/{ctx.args[0]}/{current_time}'
+
+    os.mkdir(dump_path)
+    os.mkdir(f'{dump_path}/scores')
+
+    if target.online:
+        target.logout()
+
+    # Dump player scores on db.
+    os.system(f"mysqldump -u {app.settings.DB_USER} -p{app.settings.DB_PASS} {app.settings.DB_NAME} scores --where='userid={target.id}' > {dump_path}/scores.sql")
+
+    # Dump player scores.
+    for score in await app.state.services.database.fetch_all(
+        "SELECT id FROM scores WHERE userid = :uid",
+        {"uid": target.id},
+    ):
+        score = score[0]
+        if os.path.exists(path := f'{os.getcwd()}/.data/osr/{score}.osr'):
+            # Move .osr
+            os.rename(path, f'{dump_path}/scores/{score}.osr')
+
+    # Delete player scores from db.
+    await app.state.services.database.execute(
+        "DELETE FROM scores WHERE userid = :uid",
+        {"uid": target.id},
+    )
+
+    # Save player stats to the file.
+    with open(f'{dump_path}/stats.json', 'w') as file:
+        data = await app.state.services.database.fetch_all(
+            "SELECT mode, tscore, rscore, pp, plays, acc, max_combo, total_hits, xh_count, sh_count, s_count, a_count"
+            " FROM stats"
+            " WHERE id = :uid",
+            {"uid": target.id},
+        )
+
+        stats_to_write = {}
+        for row in data:
+            row_to_write = []
+            for i, column in enumerate(row):
+                if i != 0:
+                    row_to_write.append(column)
+
+            stats_to_write[row[0]] = row_to_write
+        data = json.dumps(stats_to_write, indent=4)
+        file.write(data)
+
+    # Wipe player stats.
+    await app.state.services.database.execute(
+        "UPDATE stats"
+        " SET tscore=0, rscore=0, pp=0, plays=0, acc=0, max_combo=0, total_hits=0, xh_count=0, sh_count=0, s_count=0, a_count=0"
+        " WHERE id = :uid",
+        {"uid": target.id},
+    )
+
+    # Compress the data.
+    with tarfile.open(f'{base_path}/{target.id}/{current_time}.tar.gz', "w:gz") as tar:
+        tar.add(path := f'{dump_path}/scores', arcname=os.path.basename(path))
+        tar.add(path := f'{dump_path}/scores.sql', arcname=os.path.basename(path))
+        tar.add(path := f'{dump_path}/stats.json', arcname=os.path.basename(path))
+
+    # Remove dump files since they are archived.
+    os.rmdir(dump_path)
+
+    return f"Successfully wiped {target.name}."
 
 
 """ Developer commands
